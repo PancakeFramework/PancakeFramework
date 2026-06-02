@@ -304,19 +304,138 @@ class RedisLock:
 
 
 # ============================================================
+#  缓存防护
+# ============================================================
+
+# 空值标记，防止缓存穿透
+_NULL_PLACEHOLDER = "__PANCAKE_NULL__"
+
+# 单飞锁，防止缓存击穿
+_singleflight_locks: dict[str, asyncio.Lock] = {}
+
+
+class CacheGuard:
+    """
+    缓存防护工具
+
+    防穿透：查询不存在的数据时，缓存空值标记，短 TTL
+    防雪崩：TTL 加随机偏移，避免同时过期
+    防击穿：热 key 过期时，用锁保证只有一个请求回源
+    """
+
+    def __init__(self, client: "RedisClient"):
+        self._client = client
+
+    async def get_or_load(self, key: str, loader: Callable,
+                          ttl: int = None, null_ttl: int = 30,
+                          jitter: int = 0, protect_breakdown: bool = True) -> Any:
+        """
+        获取缓存，未命中则调用 loader 回源
+
+        防穿透：loader 返回 None 时，缓存空值标记 null_ttl 秒
+        防雪崩：jitter > 0 时，TTL 加随机偏移 [0, jitter)
+        防击穿：protect_breakdown=True 时，用锁防止并发回源
+
+        Args:
+            key: 缓存 key
+            loader: 回源函数（async 或 sync）
+            ttl: 缓存过期时间（秒）
+            null_ttl: 空值缓存时间（秒），防止穿透
+            jitter: TTL 随机偏移上限（秒），防止雪崩
+            protect_breakdown: 是否防击穿（单飞锁）
+
+        Returns:
+            缓存值或 loader 返回值
+        """
+        # 1. 先查缓存
+        data = await self._client.get(key)
+
+        # 命中空值标记
+        if data == _NULL_PLACEHOLDER:
+            logger.debug(f"缓存空值命中: {key}")
+            return None
+
+        # 命中正常值
+        if data is not None:
+            logger.debug(f"缓存命中: {key}")
+            return await self._client.get_json(key)
+
+        # 2. 未命中，准备回源
+        if protect_breakdown:
+            # 防击穿：单飞锁
+            lock_key = f"_sf:{key}"
+            if lock_key not in _singleflight_locks:
+                _singleflight_locks[lock_key] = asyncio.Lock()
+            lock = _singleflight_locks[lock_key]
+
+            async with lock:
+                # 双重检查：拿到锁后再查一次
+                data = await self._client.get(key)
+                if data == _NULL_PLACEHOLDER:
+                    return None
+                if data is not None:
+                    return await self._client.get_json(key)
+
+                # 回源
+                result = await self._call_loader(loader)
+                await self._store(key, result, ttl, null_ttl, jitter)
+                return result
+        else:
+            # 不防击穿，直接回源
+            result = await self._call_loader(loader)
+            await self._store(key, result, ttl, null_ttl, jitter)
+            return result
+
+    async def _call_loader(self, loader: Callable) -> Any:
+        """调用回源函数"""
+        if asyncio.iscoroutinefunction(loader):
+            return await loader()
+        return loader()
+
+    async def _store(self, key: str, result: Any, ttl: int, null_ttl: int, jitter: int):
+        """存储结果到缓存"""
+        # 计算实际 TTL（加随机偏移防雪崩）
+        import random
+        actual_ttl = ttl
+        if actual_ttl and jitter > 0:
+            actual_ttl = actual_ttl + random.randint(0, jitter - 1)
+
+        if result is None:
+            # 防穿透：缓存空值标记
+            await self._client.set(key, _NULL_PLACEHOLDER, ttl=null_ttl)
+            logger.debug(f"缓存空值写入: {key} (ttl={null_ttl}s)")
+        else:
+            await self._client.set_json(key, result, ttl=actual_ttl)
+            logger.debug(f"缓存写入: {key} (ttl={actual_ttl}s)")
+
+    async def invalidate(self, key: str) -> None:
+        """主动失效缓存"""
+        await self._client.delete(key)
+
+    async def invalidate_pattern(self, pattern: str) -> int:
+        """按模式失效缓存"""
+        return await self._client.clear_prefix(pattern)
+
+
+# ============================================================
 #  缓存装饰器
 # ============================================================
 
-def cached(key: str = None, ttl: int = None, prefix: str = "cache"):
+def cached(key: str = None, ttl: int = None, prefix: str = "cache",
+           null_ttl: int = 30, jitter: int = 0, protect_breakdown: bool = True):
     """
-    缓存装饰器 — 自动缓存函数返回值
+    缓存装饰器 — 自动缓存函数返回值，内置三重防护
+
+    防穿透：函数返回 None 时，缓存空值标记 null_ttl 秒
+    防雪崩：jitter > 0 时，TTL 加随机偏移
+    防击穿：protect_breakdown=True 时，用锁防止并发回源
 
     使用方法：
         @cached(ttl=300)
         async def get_user(user_id: int):
             return await db.query(user_id)
 
-        @cached(key="user:{user_id}", ttl=600)
+        @cached(key="user:{user_id}", ttl=600, jitter=60)
         async def get_user_detail(user_id: int):
             return await db.query_detail(user_id)
     """
@@ -327,6 +446,8 @@ def cached(key: str = None, ttl: int = None, prefix: str = "cache"):
             if _client is None:
                 return await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
 
+            guard = CacheGuard(_client)
+
             # 构建缓存 key
             if key:
                 cache_key = key.format(**kwargs, **{str(i): v for i, v in enumerate(args)})
@@ -336,22 +457,17 @@ def cached(key: str = None, ttl: int = None, prefix: str = "cache"):
                 param_hash = hashlib.md5(params.encode()).hexdigest()[:8]
                 cache_key = f"{prefix}:{func_name}:{param_hash}"
 
-            # 尝试从缓存获取
-            cached_data = await _client.get_json(cache_key)
-            if cached_data is not None:
-                logger.debug(f"缓存命中: {cache_key}")
-                return cached_data
+            # 使用 get_or_load，自动处理穿透/雪崩/击穿
+            async def loader():
+                if asyncio.iscoroutinefunction(func):
+                    return await func(*args, **kwargs)
+                return func(*args, **kwargs)
 
-            # 执行函数
-            if asyncio.iscoroutinefunction(func):
-                result = await func(*args, **kwargs)
-            else:
-                result = func(*args, **kwargs)
-
-            # 写入缓存
-            await _client.set_json(cache_key, result, ttl=ttl)
-            logger.debug(f"缓存写入: {cache_key}")
-            return result
+            return await guard.get_or_load(
+                cache_key, loader,
+                ttl=ttl, null_ttl=null_ttl,
+                jitter=jitter, protect_breakdown=protect_breakdown
+            )
 
         wrapper._cache_clear = lambda: _client.clear_prefix(prefix) if _client else None
         return wrapper
@@ -423,4 +539,5 @@ class Main(InitAction):
 # 注册到 oven
 oven.muffin_flour["cached"] = cached
 oven.muffin_flour["RedisClient"] = RedisClient
+oven.muffin_flour["CacheGuard"] = CacheGuard
 oven.muffin_suger["redis_client"] = get_client
