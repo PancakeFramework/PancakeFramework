@@ -202,13 +202,41 @@ git add <修改的文件>
 git commit -m "<描述>"
 ```
 
-Commit 消息规范:
+#### 分支策略
+
+| 分支 | 用途 | 权限 |
+|------|------|------|
+| `main` | 稳定分支，**禁止直接提交** | 只能通过 PR 合并 |
+| `dev` | 开发分支，日常开发基于此分支 | PR 合并 |
+| `feat/xxx` | 功能分支，从 `dev` 创建 | 自由推送 |
+| `fix/xxx` | 修复分支 | 自由推送 |
+
+工作流程:
+1. 从 `dev` 创建分支: `git checkout -b feat/your-feature dev`
+2. 开发完成后推送: `git push origin feat/your-feature`
+3. 在 GitHub 创建 Pull Request，目标分支为 `dev`
+4. 等待 CI 通过 + Code Review
+5. 合并后删除功能分支
+
+**禁止直接向 `main` / `dev` 推送代码，必须通过 Pull Request 合并。**
+
+#### Commit 消息规范
+
 - 使用中文或英文均可，但要清晰描述改动内容
 - 格式: `<类型>: <简要描述>`
 - 类型: `feat` / `fix` / `refactor` / `docs` / `test` / `chore`
 - 示例: `feat: 添加用户注册接口` / `fix: 修复 SQL 注入漏洞` / `docs: 更新 CLAUDE.md`
 
-禁止事项:
+#### PR 规范
+
+- 标题必须符合 Commit 格式: `<type>: <描述>`
+- 说明改动的原因和背景
+- 确保 CI 测试通过
+- 一个 PR 只做一件事，保持范围小
+
+#### 禁止事项
+
+- 禁止直接向 `main` / `dev` 推送代码
 - 禁止提交 `.env`、密钥、密码等敏感文件
 - 禁止提交 `.venv/`、`__pycache__/`、`*.db` 等生成文件
 - 禁止使用 `git add .` 或 `git add -A`，必须明确指定文件
@@ -267,7 +295,7 @@ python main.py
 | `muffin_flour` | 装饰器 | `Mapper`, `get_controller`, `inject` |
 | `muffin_water` | 类 | `IoCContainer`, `Lifecycle`, `Scope` |
 | `muffin_egg` | 方法/构建器 | `Builder`, `LoopMethod`, `BuildOrder` |
-| `muffin_suger` | 其他 | `container` |
+| `muffin_sugar` | 其他 | `container` |
 
 ## 配置项
 
