@@ -261,6 +261,8 @@ pip install pancake_framework[all]         # All optional deps
 
 ## TODO
 
+### Core / IoC
+
 - [x] Database migration support
 - [x] Configuration hot-reload
 - [x] Pagination `Page` object abstraction
@@ -271,6 +273,79 @@ pip install pancake_framework[all]         # All optional deps
 - [x] API documentation auto-generation
 - [x] More database dialects (SQLite/PG/MySQL type mapping)
 - [x] Connection pool health check and auto-reconnect
+- [x] JWT authentication support
+- [x] Scheduled tasks (cron-like)
+- [x] CLI interactive code (REPL)
+- [ ] Auto-configuration — auto-detect dependencies and configure defaults
+- [ ] Profiles — environment-specific config (dev / test / prod)
+- [ ] Conditional beans — `@ConditionalOnProperty`, `@ConditionalOnClass`
+- [ ] Bean lifecycle callbacks — `@PostConstruct`, `@PreDestroy`
+- [ ] Lazy initialization — `@Lazy` for deferred bean creation
+- [ ] Event system — `@EventListener`, application events (ContextRefreshed, etc.)
+- [ ] Property binding — auto-map YAML/ENV to dataclass (`@ConfigurationProperties`)
+
+### Web / REST
+
+- [ ] CORS configuration — global and per-route CORS policy
+- [ ] API versioning — `/api/v1/users`, `/api/v2/users`
+- [ ] Exception handler — `@ExceptionHandler`, global error response
+- [ ] Request logging middleware — auto-log method, path, status, duration
+- [ ] Response compression — gzip/brotli middleware
+- [ ] File upload — `@multipart`, multipart/form-data handling
+- [ ] Server-Sent Events — `@sse_controller` for real-time push
+- [ ] Request body validation — Pydantic-style `@Valid` on request models
+- [ ] Content negotiation — JSON / XML response based on Accept header
+- [ ] Async route handler — auto-detect async vs sync functions
+- [ ] Static file serving — built-in static directory mount
+- [ ] Request ID — auto-generate and propagate `X-Request-Id`
+
+### Security
+
+- [ ] OAuth2 support — OAuth2 client and resource server
+- [ ] API key authentication — `@api_key_required` header-based auth
+- [ ] Password hashing — bcrypt/argon2 integration
+- [ ] CSRF protection — token-based CSRF for form submissions
+- [ ] Security headers — auto-add HSTS, X-Frame-Options, CSP
+- [ ] IP whitelist/blacklist — middleware-based IP filtering
+- [ ] Session management — server-side session with Redis/memory store
+
+### Data / ORM
+
+- [ ] Transaction propagation — REQUIRED, REQUIRES_NEW, NESTED
+- [ ] Soft delete — `@SoftDelete`, `deleted_at` column support
+- [ ] Auto timestamps — `created_at`, `updated_at` auto-fill
+- [ ] Optimistic locking — version field for concurrent update safety
+- [ ] Multi-datasource — connect to multiple databases simultaneously
+- [ ] Database seeding — auto-insert initial data on startup
+- [ ] Query logging — SQL statement logging with execution time
+- [ ] Raw SQL helper — `db.execute_raw(sql)` with safety checks
+- [ ] Relation mapping — one-to-many, many-to-many lazy/eager loading
+
+### AOP / Middleware
+
+- [ ] AOP (Aspect-Oriented Programming) — `@Before`, `@After`, `@Around` pointcuts
+- [ ] Retry mechanism — `@Retry(max=3, delay=1)` for flaky operations
+- [ ] Circuit breaker — `@CircuitBreaker` for fault tolerance
+- [ ] Cache abstraction — `@Cacheable`, `@CacheEvict` (multi-backend: memory/Redis)
+- [ ] Async execution — `@Async` for non-blocking background tasks
+- [ ] Method timer — `@Timed` for method execution metrics
+- [ ] Locking — `@DistributedLock` for concurrent access control
+
+### Observability
+
+- [ ] Structured logging — JSON log output with correlation ID
+- [ ] Health indicators — custom health checks (DB, Redis, external API)
+- [ ] Distributed tracing — OpenTelemetry trace context propagation
+- [ ] Log levels API — runtime log level change via REST endpoint
+
+### DevOps / CLI
+
+- [ ] Project scaffolding — `pancake create` with templates (API / Fullstack / Microservice)
+- [ ] Code generation — auto-generate Mapper/Controller from table schema
+- [ ] DevTools — auto-restart on code change (watchdog)
+- [ ] Docker support — auto-generate Dockerfile and docker-compose.yml
+- [ ] Config validation — startup validation of required config keys
+- [ ] Dry run — `pancake check` with full dependency and config validation
 
 ## Running Tests
 
