@@ -65,3 +65,25 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          body: |
+            ## ${{ github.ref_name }}
+
+            ### Features
+            - Decorator-driven Python web framework with zero-import design
+            - IoC Container (Singleton / Transient / Scoped)
+            - MyBatis Plus ORM: BaseMapper CRUD, chain queries, pagination, dynamic SQL
+            - FastAPI Web: all HTTP methods, auth, middleware, validation, transaction
+            - AI Module: OpenAI / DeepSeek / Gemini / Ollama / GLM / Moonshot / Qwen
+            - Short-term & Long-term memory, RAG
+            - Redis Cache with anti-penetration/avalanche/breakdown protection
+            - Message Queue: SimpleBroker / RedisBroker
+            - Lifecycle Management, Remote Calls (HTTP/gRPC)
+            - CUI (Click) and GUI (Flet/Flutter) support
+            - CLI tool: `pancake create/run/check/build`
+
+            ### Install
+            ```bash
+            pip install pancake_framework
+            ```
+
+            [Full Documentation](https://github.com/Drayee/PancakeFramework#readme)
