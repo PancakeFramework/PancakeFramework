@@ -128,7 +128,7 @@ class UserMapper(BaseMapper):
     async def find_by_name(self, name: str) -> list[User]: ...
 ```
 
-链式查询: `qw().eq("name", "Alice").ge("age", 18).orderByDesc("age").limit(50)`
+链式查询: `qw().eq("name", "Alice").ge("age", 18).order_by_desc("age").limit(50)`
 
 ### IoC 容器
 

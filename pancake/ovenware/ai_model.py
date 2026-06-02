@@ -26,7 +26,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Any, AsyncIterator, Optional
+from typing import Any, AsyncIterator
 
 from pancake import oven
 from pancake.ovenware import check_dependencies
@@ -380,21 +380,21 @@ class AIManager:
     """
 
     def __init__(self):
-        self._chat_model: Optional[ChatModel] = None
-        self._short_term_memory: Optional[ShortTermMemory] = None
-        self._long_term_memory: Optional[LongTermMemory] = None
-        self._rag: Optional[RAG] = None
+        self._chat_model: ChatModel | None = None
+        self._short_term_memory: ShortTermMemory | None = None
+        self._long_term_memory: LongTermMemory | None = None
+        self._rag: RAG | None = None
 
-    def get_chat_model(self) -> Optional[ChatModel]:
+    def get_chat_model(self) -> ChatModel | None:
         return self._chat_model
 
-    def get_short_term_memory(self) -> Optional[ShortTermMemory]:
+    def get_short_term_memory(self) -> ShortTermMemory | None:
         return self._short_term_memory
 
-    def get_long_term_memory(self) -> Optional[LongTermMemory]:
+    def get_long_term_memory(self) -> LongTermMemory | None:
         return self._long_term_memory
 
-    def get_rag(self) -> Optional[RAG]:
+    def get_rag(self) -> RAG | None:
         return self._rag
 
     def reset(self):
@@ -498,7 +498,7 @@ oven.muffin_flour["LongTermMemory"] = LongTermMemory
 oven.muffin_flour["RAG"] = RAG
 oven.muffin_flour["register_provider"] = register_provider
 
-oven.muffin_suger["chat_model"] = get_chat_model
-oven.muffin_suger["short_term_memory"] = get_short_term_memory
-oven.muffin_suger["long_term_memory"] = get_long_term_memory
-oven.muffin_suger["rag"] = get_rag
+oven.muffin_sugar["chat_model"] = get_chat_model
+oven.muffin_sugar["short_term_memory"] = get_short_term_memory
+oven.muffin_sugar["long_term_memory"] = get_long_term_memory
+oven.muffin_sugar["rag"] = get_rag

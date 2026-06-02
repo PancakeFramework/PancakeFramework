@@ -17,7 +17,7 @@ import functools
 import hashlib
 import json
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from pancake import oven
 from pancake.ovenware import check_dependencies
@@ -62,7 +62,7 @@ class RedisClient:
     #  基础缓存操作
     # ============================================================
 
-    async def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> str | None:
         """获取值"""
         conn = await self._get_conn()
         return await conn.get(self._key(key))
@@ -141,7 +141,7 @@ class RedisClient:
     #  Hash 操作
     # ============================================================
 
-    async def hget(self, key: str, field: str) -> Optional[str]:
+    async def hget(self, key: str, field: str) -> str | None:
         """获取 hash 字段值"""
         conn = await self._get_conn()
         return await conn.hget(self._key(key), field)
@@ -193,12 +193,12 @@ class RedisClient:
         conn = await self._get_conn()
         return await conn.rpush(self._key(key), *values)
 
-    async def lpop(self, key: str) -> Optional[str]:
+    async def lpop(self, key: str) -> str | None:
         """左侧弹出"""
         conn = await self._get_conn()
         return await conn.lpop(self._key(key))
 
-    async def rpop(self, key: str) -> Optional[str]:
+    async def rpop(self, key: str) -> str | None:
         """右侧弹出"""
         conn = await self._get_conn()
         return await conn.rpop(self._key(key))
@@ -247,7 +247,7 @@ class RedisClient:
     # ============================================================
 
     async def lock(self, name: str, timeout: int = 10, blocking: bool = True,
-                   blocking_timeout: int = 10) -> Optional["RedisLock"]:
+                   blocking_timeout: int = 10) -> "RedisLock | None":
         """获取分布式锁"""
         conn = await self._get_conn()
         lock_key = self._key(f"lock:{name}")
@@ -492,9 +492,9 @@ class RedisManager:
     """
 
     def __init__(self):
-        self._client: Optional[RedisClient] = None
+        self._client: RedisClient | None = None
 
-    def get(self) -> Optional[RedisClient]:
+    def get(self) -> RedisClient | None:
         """获取全局 Redis 客户端"""
         return self._client
 
@@ -532,10 +532,10 @@ class Main(InitAction):
 
     def __init__(self):
         url = oven.pancake_yaml.get("redis.url", "redis://localhost:6379")
-        db = oven.pancake_yaml.get("redis.db", 0)
+        db = int(oven.pancake_yaml.get("redis.db", 0))
         password = oven.pancake_yaml.get("redis.password")
         prefix = oven.pancake_yaml.get("redis.key_prefix", "pancake:")
-        default_ttl = oven.pancake_yaml.get("redis.default_ttl", 3600)
+        default_ttl = int(oven.pancake_yaml.get("redis.default_ttl", 3600))
 
         client = RedisClient(
             url=url, db=db, password=password,
@@ -571,4 +571,4 @@ class Main(InitAction):
 oven.muffin_flour["cached"] = cached
 oven.muffin_flour["RedisClient"] = RedisClient
 oven.muffin_flour["CacheGuard"] = CacheGuard
-oven.muffin_suger["redis_client"] = get_client
+oven.muffin_sugar["redis_client"] = get_client

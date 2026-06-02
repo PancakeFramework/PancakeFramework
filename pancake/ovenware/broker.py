@@ -6,7 +6,7 @@
 import asyncio
 import functools
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 from collections import defaultdict
 
 from pancake import oven

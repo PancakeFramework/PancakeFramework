@@ -109,7 +109,8 @@ def auto_inject(*same_name_args: list[str], **customize_args: dict[str, str]):
                 try:
                     match param_types[param_item_]:
                         case type() as t if t in (str, int, float, bool):
-                            kwargs[param_item_] = oven.pancake_yaml[param_item_.replace("_", ".")]
+                            yaml_key = param_item_.replace("_", ".")
+                            kwargs[param_item_] = oven.pancake_yaml[yaml_key]
                         case type() as t if t in (dict, list):
                             kwargs[param_item_] = oven.pancake_json[param_item_]
                         case _:
@@ -240,21 +241,36 @@ class IoCContainer:
             **named_deps: 命名依赖映射
         """
         def decorator(f):
-            hints = get_type_hints(f)
+            # 获取原始类型注解（不解析字符串注解，避免命名空间问题）
+            hints = {}
+            for pname, param in inspect.signature(f).parameters.items():
+                if param.annotation is not inspect.Parameter.empty:
+                    ann = param.annotation
+                    if isinstance(ann, str):
+                        # 字符串注解，尝试从函数全局命名空间解析
+                        try:
+                            ann = eval(ann, getattr(f, '__globals__', {}))
+                        except Exception:
+                            pass
+                    hints[pname] = ann
             sig = inspect.signature(f)
 
             @functools.wraps(f)
             def wrapper(*args, **kwargs):
-                for param_name, param in sig.parameters.items():
+                for param_name, param_type in hints.items():
                     if param_name in kwargs:
                         continue
-                    param_type = hints.get(param_name)
                     if param_type:
                         if param_name in named_deps:
                             kwargs[param_name] = named_deps[param_name]
-                        elif param_type.__name__ in self._registrations:
+                        elif hasattr(param_type, '__name__') and param_type.__name__ in self._registrations:
                             kwargs[param_name] = self.resolve(param_type)
                 return f(*args, **kwargs)
+            # 清除注解和 __wrapped__，设置空签名，避免 FastAPI 将注入参数当作请求/响应模型
+            wrapper.__annotations__ = {}
+            if hasattr(wrapper, '__wrapped__'):
+                delattr(wrapper, '__wrapped__')
+            wrapper.__signature__ = inspect.Signature()
             return wrapper
 
         if func:
@@ -270,8 +286,11 @@ class IoCContainer:
         self._scoped.clear()
 
 
-# 全局容器
-container = IoCContainer()
+# 全局容器（使用 oven 存储确保单例，避免重复导入创建多个实例）
+if "container" in oven.muffin_sugar:
+    container = oven.muffin_sugar["container"]
+else:
+    container = IoCContainer()
 
 
 def inject(func: Callable = None, **named_deps):
@@ -284,4 +303,4 @@ oven.muffin_flour["auto_inject"] = auto_inject
 oven.muffin_flour["inject"] = inject
 oven.muffin_water["IoCContainer"] = IoCContainer
 oven.muffin_water["Scope"] = Scope
-oven.muffin_suger["container"] = container
+oven.muffin_sugar["container"] = container

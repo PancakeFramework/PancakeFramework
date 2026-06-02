@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class Main(InitAction):
 
-    init_order = -10
+    init_order = 999
 
     def __init__(self):
         self.build()
@@ -40,8 +40,8 @@ class Main(InitAction):
             __builtins__[json] = oven.pancake_json[json]
             plugin_count += 1
 
-        for suger in oven.muffin_suger.keys():
-            __builtins__[suger] = oven.muffin_suger[suger]
+        for sugar in oven.muffin_sugar.keys():
+            __builtins__[sugar] = oven.muffin_sugar[sugar]
             plugin_count += 1
 
         # XML 配置

@@ -6,6 +6,7 @@ MyBatis Plus 风格链式条件构造器
 """
 
 import re
+from typing import Any
 
 _IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
@@ -49,7 +50,7 @@ class QueryWrapper:
     """
 
     def __init__(self):
-        self._conditions: list[tuple[str, str, any]] = []  # (column, op, value)
+        self._conditions: list[tuple[str, str, Any]] = []  # (column, op, value)
         self._order_by: list[tuple[str, str]] = []  # (column, direction)
         self._group_by: list[str] = []
         self._having: str = ""
@@ -105,17 +106,17 @@ class QueryWrapper:
         self._conditions.append((column, "LIKE", value))
         return self
 
-    def notLike(self, column, value):
+    def not_like(self, column, value):
         column = _resolve_column(column)
         self._conditions.append((column, "NOT LIKE", value))
         return self
 
-    def likeLeft(self, column, value):
+    def like_left(self, column, value):
         column = _resolve_column(column)
         self._conditions.append((column, "LIKE_LEFT", f"%{value}"))
         return self
 
-    def likeRight(self, column, value):
+    def like_right(self, column, value):
         column = _resolve_column(column)
         self._conditions.append((column, "LIKE_RIGHT", f"{value}%"))
         return self
@@ -127,7 +128,7 @@ class QueryWrapper:
         self._conditions.append((column, "IN", values))
         return self
 
-    def notIn(self, column, values: list):
+    def not_in(self, column, values: list):
         column = _resolve_column(column)
         self._conditions.append((column, "NOT IN", values))
         return self
@@ -139,19 +140,19 @@ class QueryWrapper:
         self._conditions.append((column, "BETWEEN", (low, high)))
         return self
 
-    def notBetween(self, column, low, high):
+    def not_between(self, column, low, high):
         column = _resolve_column(column)
         self._conditions.append((column, "NOT BETWEEN", (low, high)))
         return self
 
     # ---- NULL ----
 
-    def isNull(self, column):
+    def is_null(self, column):
         column = _resolve_column(column)
         self._conditions.append((column, "IS NULL", None))
         return self
 
-    def isNotNull(self, column):
+    def is_not_null(self, column):
         column = _resolve_column(column)
         self._conditions.append((column, "IS NOT NULL", None))
         return self
@@ -184,17 +185,17 @@ class QueryWrapper:
 
     # ---- 排序 / 分页 ----
 
-    def orderByAsc(self, *columns):
+    def order_by_asc(self, *columns):
         for col in columns:
             self._order_by.append((_resolve_column(col), "ASC"))
         return self
 
-    def orderByDesc(self, *columns):
+    def order_by_desc(self, *columns):
         for col in columns:
             self._order_by.append((_resolve_column(col), "DESC"))
         return self
 
-    def groupBy(self, *columns):
+    def group_by(self, *columns):
         for col in columns:
             self._group_by.append(_resolve_column(col))
         return self
@@ -282,18 +283,30 @@ class QueryWrapper:
                 values[pname] = value
 
         # 处理 OR 分组（包含 and_/or_ 嵌套和 or_eq 快捷方式）
+        or_parts = []
         for group in self._or_groups:
             if group[0] == "OR_INLINE":
                 _, column, op, value = group
                 pname = self._next_param(column)
-                parts.append(f"OR {column} {op} :{pname}")
+                or_parts.append(f"{column} {op} :{pname}")
                 values[pname] = value
             elif group[0] in ("AND", "OR"):
                 logic, sub_sql, sub_params = group
-                parts.append(f"{logic} ({sub_sql})")
+                if logic == "OR":
+                    or_parts.append(sub_sql)
+                else:
+                    parts.append(f"({sub_sql})")
                 values.update(sub_params)
 
-        where = " AND ".join(parts)
+        and_where = " AND ".join(parts)
+        if or_parts:
+            or_where = " OR ".join(or_parts)
+            if and_where:
+                where = f"{and_where} OR ({or_where})"
+            else:
+                where = f"({or_where})"
+        else:
+            where = and_where
         return where, values
 
     def to_where_clause(self) -> tuple[str, dict]:
@@ -338,6 +351,19 @@ class QueryWrapper:
             values.update(self._having_params)
         return sql, values
 
+    # ---- 向后兼容 camelCase 别名 ----
+
+    notLike = not_like
+    likeLeft = like_left
+    likeRight = like_right
+    notIn = not_in
+    notBetween = not_between
+    isNull = is_null
+    isNotNull = is_not_null
+    orderByAsc = order_by_asc
+    orderByDesc = order_by_desc
+    groupBy = group_by
+
 
 class UpdateWrapper(QueryWrapper):
     """
@@ -349,7 +375,7 @@ class UpdateWrapper(QueryWrapper):
 
     def __init__(self):
         super().__init__()
-        self._set_clauses: list[tuple[str, any]] = []
+        self._set_clauses: list[tuple[str, Any]] = []
 
     def set(self, column, value):
         """SET column = value"""
