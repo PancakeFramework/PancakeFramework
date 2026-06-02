@@ -347,6 +347,10 @@ pip install pancake_framework[all]         # All optional deps
 - [ ] Config validation — startup validation of required config keys
 - [ ] Dry run — `pancake check` with full dependency and config validation
 
+### Performance
+
+- [ ] C extension — convert hot-path modules (sql_parser, wrapper, jwt) to C for speed
+
 ## Running Tests
 
 ```bash
