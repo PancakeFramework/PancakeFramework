@@ -22,61 +22,42 @@ ai:
     #   base_url: https://api.openai.com/v1
     #   api_key: ${OPENAI_API_KEY}
     #   model: gpt-4o
-    #   max_tokens: 4096
-    #   temperature: 0.7
 
     # gemini:
     #   type: google
     #   api_key: ${GOOGLE_API_KEY}
     #   model: gemini-2.0-flash
-    #   max_tokens: 4096
-    #   temperature: 0.7
 
     # ollama:
     #   type: ollama
     #   base_url: http://localhost:11434
     #   model: llama3
-    #   max_tokens: 4096
-
-    # zhipu:
-    #   type: openai
-    #   base_url: https://open.bigmodel.cn/api/paas/v4
-    #   api_key: ${ZHIPU_API_KEY}
-    #   model: glm-4
-
-    # moonshot:
-    #   type: openai
-    #   base_url: https://api.moonshot.cn/v1
-    #   api_key: ${MOONSHOT_API_KEY}
-    #   model: moonshot-v1-8k
-
-    # qwen:
-    #   type: openai
-    #   base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-    #   api_key: ${DASHSCOPE_API_KEY}
-    #   model: qwen-turbo
 
   memory:
     short_term:
-      strategy: sliding_window    # sliding_window 或 token_limit
-      max_messages: 20
-      max_tokens: 4000
-      summary_on_overflow: false
-      summary_model: deepseek
+      backend: memory             # memory(内存) | redis | mybatis
+      table_name: ai_short_term   # MyBatis 表名
+      ttl: 86400                  # 过期时间（秒），0=永不过期
+      max_messages: 20            # 滑动窗口：保留最近 N 条
 
     long_term:
-      backend: sqlite             # sqlite 或 redis
-      ttl: 0                      # 0=永不过期
-      namespace: default
-      sqlite_path: resource/db/memory.db
-      # redis_url: redis://localhost:6379
-      # redis_db: 0
+      backend: memory             # memory(内存) | redis | mybatis
+      table_name: ai_long_term    # MyBatis 表名
+      ttl: 0                      # 永不过期
 
   rag:
-    collection: pancake_docs
+    backend: pgvector             # pgvector | redis | mongodb
+    table_name: ai_rag_docs       # 表名/集合名
     embedding_provider: deepseek
     embedding_model: text-embedding-3-small
     chunk_size: 500
     chunk_overlap: 50
     top_k: 5
-    persist_dir: resource/db/chroma
+    dimension: 1536
+    # PostgreSQL
+    # pg_url: ${DATABASE_URL}
+    # Redis
+    # redis_url: redis://localhost:6379
+    # MongoDB
+    # mongo_url: ${MONGO_URL}
+    # mongo_db: pancake
