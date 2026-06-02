@@ -29,6 +29,7 @@ import os
 from typing import Any, AsyncIterator, Optional
 
 from pancake import oven
+from pancake.ovenware import check_dependencies
 from .ai_memory import (
     ShortTermMemory, LongTermMemory, RAG,
     InMemoryBackend, RedisBackend, MyBatisBackend,
@@ -363,29 +364,59 @@ class ChatModel:
 
 
 # ============================================================
-#  全局实例
+#  AI 管理器
 # ============================================================
 
-_chat_model: Optional[ChatModel] = None
-_short_term_memory: Optional[ShortTermMemory] = None
-_long_term_memory: Optional[LongTermMemory] = None
-_rag: Optional[RAG] = None
+
+class AIManager:
+    """
+    AI 管理器 — 封装全局 AI 实例状态
+
+    使用方法:
+        manager = AIManager()
+        # 由 Main.__init__ 初始化
+        chat_model = manager.get_chat_model()
+        manager.reset()
+    """
+
+    def __init__(self):
+        self._chat_model: Optional[ChatModel] = None
+        self._short_term_memory: Optional[ShortTermMemory] = None
+        self._long_term_memory: Optional[LongTermMemory] = None
+        self._rag: Optional[RAG] = None
+
+    def get_chat_model(self) -> Optional[ChatModel]:
+        return self._chat_model
+
+    def get_short_term_memory(self) -> Optional[ShortTermMemory]:
+        return self._short_term_memory
+
+    def get_long_term_memory(self) -> Optional[LongTermMemory]:
+        return self._long_term_memory
+
+    def get_rag(self) -> Optional[RAG]:
+        return self._rag
+
+    def reset(self):
+        """重置状态（用于测试）"""
+        self._chat_model = None
+        self._short_term_memory = None
+        self._long_term_memory = None
+        self._rag = None
 
 
-def get_chat_model() -> Optional[ChatModel]:
-    return _chat_model
+# 向后兼容的模块级默认实例
+_manager = AIManager()
+
+get_chat_model = _manager.get_chat_model
+get_short_term_memory = _manager.get_short_term_memory
+get_long_term_memory = _manager.get_long_term_memory
+get_rag = _manager.get_rag
 
 
-def get_short_term_memory() -> Optional[ShortTermMemory]:
-    return _short_term_memory
-
-
-def get_long_term_memory() -> Optional[LongTermMemory]:
-    return _long_term_memory
-
-
-def get_rag() -> Optional[RAG]:
-    return _rag
+def create_manager() -> AIManager:
+    """创建新的独立管理器（用于测试）"""
+    return AIManager()
 
 
 # ============================================================
@@ -396,40 +427,40 @@ class Main(InitAction):
     """AI 模块插件主类"""
 
     init_order = 4  # redis 之后，web 之前
+    _dependencies = ["openai"]
+    _extras = "ai"
 
     def __init__(self):
-        global _chat_model, _short_term_memory, _long_term_memory, _rag
-
         user_config = self._build_config_from_flat_keys()
         config = _deep_merge(_DEFAULT_CONFIG, user_config)
         config = _resolve_env_recursive(config)
 
         # ChatModel
-        _chat_model = ChatModel(config)
+        _manager._chat_model = ChatModel(config)
 
         # ShortTermMemory
         st_config = config.get("memory", {}).get("short_term", {})
         st_backend = _create_memory_backend(st_config)
-        _short_term_memory = ShortTermMemory(st_backend, st_config)
+        _manager._short_term_memory = ShortTermMemory(st_backend, st_config)
 
         # LongTermMemory
         lt_config = config.get("memory", {}).get("long_term", {})
         lt_backend = _create_memory_backend(lt_config)
-        _long_term_memory = LongTermMemory(lt_backend, lt_config)
+        _manager._long_term_memory = LongTermMemory(lt_backend, lt_config)
 
         # RAG
         rag_config = config.get("rag", {})
         try:
             rag_backend = _create_vector_backend(rag_config)
-            _rag = RAG(rag_backend, rag_config)
+            _manager._rag = RAG(rag_backend, rag_config)
         except Exception as e:
             logger.warning(f"RAG 初始化失败: {e}")
 
         # 保存到 oven
-        oven.pancake_other["chat_model"] = _chat_model
-        oven.pancake_other["short_term_memory"] = _short_term_memory
-        oven.pancake_other["long_term_memory"] = _long_term_memory
-        oven.pancake_other["rag"] = _rag
+        oven.pancake_other["chat_model"] = _manager._chat_model
+        oven.pancake_other["short_term_memory"] = _manager._short_term_memory
+        oven.pancake_other["long_term_memory"] = _manager._long_term_memory
+        oven.pancake_other["rag"] = _manager._rag
 
     @staticmethod
     def _build_config_from_flat_keys() -> dict:
@@ -446,17 +477,15 @@ class Main(InitAction):
 
     @staticmethod
     def check():
-        try:
-            import openai  # noqa: F401
-        except ImportError:
-            logger.warning("openai 包未安装，请运行: pip install pancake[ai]")
+        check_dependencies(Main._dependencies, Main._extras)
 
     def build(self):
         logger.info("AI 模块构建完成")
 
     def loop_method(self):
-        if _chat_model:
-            logger.info(f"AI 模块就绪，默认模型: {_chat_model._default}")
+        cm = _manager.get_chat_model()
+        if cm:
+            logger.info(f"AI 模块就绪，默认模型: {cm._default}")
 
 
 # ============================================================

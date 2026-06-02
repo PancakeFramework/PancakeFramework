@@ -20,6 +20,7 @@ import logging
 from typing import Any, Callable, Optional
 
 from pancake import oven
+from pancake.ovenware import check_dependencies
 
 logger = logging.getLogger(__name__)
 
@@ -442,11 +443,11 @@ def cached(key: str = None, ttl: int = None, prefix: str = "cache",
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            global _client
-            if _client is None:
+            client = _manager.get()
+            if client is None:
                 return await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
 
-            guard = CacheGuard(_client)
+            guard = CacheGuard(client)
 
             # 构建缓存 key
             if key:
@@ -469,27 +470,53 @@ def cached(key: str = None, ttl: int = None, prefix: str = "cache",
                 jitter=jitter, protect_breakdown=protect_breakdown
             )
 
-        wrapper._cache_clear = lambda: _client.clear_prefix(prefix) if _client else None
+        wrapper._cache_clear = lambda: _manager.get().clear_prefix(prefix) if _manager.get() else None
         return wrapper
     return decorator
 
 
 # ============================================================
-#  全局客户端
+#  Redis 管理器
 # ============================================================
 
-_client: Optional[RedisClient] = None
+
+class RedisManager:
+    """
+    Redis 管理器 — 封装全局 Redis 客户端状态
+
+    使用方法:
+        manager = RedisManager()
+        manager.set(RedisClient("redis://localhost:6379"))
+        client = manager.get()
+        manager.reset()
+    """
+
+    def __init__(self):
+        self._client: Optional[RedisClient] = None
+
+    def get(self) -> Optional[RedisClient]:
+        """获取全局 Redis 客户端"""
+        return self._client
+
+    def set(self, client: RedisClient) -> None:
+        """设置全局 Redis 客户端"""
+        self._client = client
+
+    def reset(self) -> None:
+        """重置状态（用于测试）"""
+        self._client = None
 
 
-def get_client() -> Optional[RedisClient]:
-    """获取全局 Redis 客户端"""
-    return _client
+# 向后兼容的模块级默认实例
+_manager = RedisManager()
+
+get_client = _manager.get
+set_client = _manager.set
 
 
-def set_client(client: RedisClient) -> None:
-    """设置全局 Redis 客户端"""
-    global _client
-    _client = client
+def create_manager() -> RedisManager:
+    """创建新的独立管理器（用于测试）"""
+    return RedisManager()
 
 
 # ============================================================
@@ -500,36 +527,40 @@ class Main(InitAction):
     """Redis 插件主类"""
 
     init_order = 2  # 在 mybatis 之后，web 之前
+    _dependencies = ["redis"]
+    _extras = "redis"
 
     def __init__(self):
-        global _client
         url = oven.pancake_yaml.get("redis.url", "redis://localhost:6379")
         db = oven.pancake_yaml.get("redis.db", 0)
         password = oven.pancake_yaml.get("redis.password")
         prefix = oven.pancake_yaml.get("redis.key_prefix", "pancake:")
         default_ttl = oven.pancake_yaml.get("redis.default_ttl", 3600)
 
-        _client = RedisClient(
+        client = RedisClient(
             url=url, db=db, password=password,
             key_prefix=prefix, default_ttl=default_ttl
         )
+        _manager.set(client)
 
-        oven.pancake_other["redis"] = _client
+        oven.pancake_other["redis"] = client
 
     @staticmethod
     def check():
-        try:
-            import redis  # noqa: F401
-        except ImportError:
-            logger.warning("redis 包未安装，请运行: pip install pancake[redis]")
+        check_dependencies(Main._dependencies, Main._extras)
 
     def build(self):
-        logger.info(f"Redis 插件构建完成 (url={_client.url})")
+        client = _manager.get()
+        logger.info(f"Redis 插件构建完成 (url={client.url if client else 'N/A'})")
 
     async def loop_method(self):
         """测试连接"""
+        client = _manager.get()
+        if client is None:
+            logger.warning("Redis 客户端未初始化")
+            return
         try:
-            conn = await _client._get_conn()
+            conn = await client._get_conn()
             await conn.ping()
             logger.info("Redis 连接成功")
         except Exception as e:

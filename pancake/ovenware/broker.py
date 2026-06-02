@@ -141,22 +141,45 @@ class RedisBroker(MessageBroker):
             await self._redis.close()
 
 
-# 全局 broker
-_broker: Optional[MessageBroker] = None
+class BrokerManager:
+    """
+    消息队列管理器 — 封装全局 broker 状态
+
+    使用方法:
+        manager = BrokerManager()
+        broker = manager.get()       # 默认 SimpleBroker
+        manager.set(RedisBroker())
+        manager.reset()
+    """
+
+    def __init__(self):
+        self._broker: MessageBroker | None = None
+
+    def get(self) -> MessageBroker:
+        """获取全局 broker（懒初始化为 SimpleBroker）"""
+        if self._broker is None:
+            self._broker = SimpleBroker()
+        return self._broker
+
+    def set(self, broker: MessageBroker) -> None:
+        """设置全局 broker"""
+        self._broker = broker
+
+    def reset(self) -> None:
+        """重置状态（用于测试）"""
+        self._broker = None
 
 
-def get_broker() -> MessageBroker:
-    """获取全局 broker"""
-    global _broker
-    if _broker is None:
-        _broker = SimpleBroker()
-    return _broker
+# 向后兼容的模块级默认实例
+_manager = BrokerManager()
+
+get_broker = _manager.get
+set_broker = _manager.set
 
 
-def set_broker(broker: MessageBroker) -> None:
-    """设置全局 broker"""
-    global _broker
-    _broker = broker
+def create_manager() -> BrokerManager:
+    """创建新的独立管理器（用于测试）"""
+    return BrokerManager()
 
 
 def event_node(name: str = None, event: str = None):
