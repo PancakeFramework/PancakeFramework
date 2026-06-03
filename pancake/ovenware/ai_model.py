@@ -218,19 +218,21 @@ class GoogleProvider(BaseProvider):
 
     async def chat(self, messages: list[dict], **kwargs) -> str:
         client = await self._get_client()
-        contents = self._convert_messages(messages)
+        system_instruction, contents = self._convert_messages(messages)
         resp = await asyncio.to_thread(
             client.models.generate_content,
             model=kwargs.get("model", self.model), contents=contents,
+            config={"system_instruction": system_instruction} if system_instruction else None,
         )
         return resp.text
 
     async def chat_stream(self, messages: list[dict], **kwargs) -> AsyncIterator[str]:
         client = await self._get_client()
-        contents = self._convert_messages(messages)
+        system_instruction, contents = self._convert_messages(messages)
         stream = await asyncio.to_thread(
             client.models.generate_content_stream,
             model=kwargs.get("model", self.model), contents=contents,
+            config={"system_instruction": system_instruction} if system_instruction else None,
         )
         for chunk in stream:
             if chunk.text:
@@ -244,18 +246,24 @@ class GoogleProvider(BaseProvider):
         )
         return resp.embeddings[0].values
 
-    def _convert_messages(self, messages: list[dict]) -> list:
+    def _convert_messages(self, messages: list[dict]) -> tuple[str | None, list]:
+        """将 OpenAI 格式消息转为 Gemini 格式
+
+        Returns:
+            (system_instruction, contents) — system 消息单独提取
+        """
+        system_parts = []
         contents = []
         for msg in messages:
             role = msg["role"]
             if role == "system":
-                contents.append({"role": "user", "parts": [msg["content"]]})
-                contents.append({"role": "model", "parts": ["好的，我理解了。"]})
+                system_parts.append(msg["content"])
             elif role == "user":
                 contents.append({"role": "user", "parts": [msg["content"]]})
             elif role == "assistant":
                 contents.append({"role": "model", "parts": [msg["content"]]})
-        return contents
+        system_instruction = "\n".join(system_parts) if system_parts else None
+        return system_instruction, contents
 
 
 class OllamaProvider(BaseProvider):

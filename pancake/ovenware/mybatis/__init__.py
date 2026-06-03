@@ -41,6 +41,11 @@ oven.muffin_flour["QueryWrapper"] = QueryWrapper
 oven.muffin_flour["ColumnRef"] = ColumnRef
 oven.muffin_flour["entity_columns"] = entity_columns
 
+# 注册分页相关类
+from .mapper import Page, PageResult
+oven.muffin_flour["Page"] = Page
+oven.muffin_flour["PageResult"] = PageResult
+
 
 class Main(InitAction):
 

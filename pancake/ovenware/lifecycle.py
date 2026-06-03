@@ -165,6 +165,8 @@ def lifecycle_node(name: str = None):
                 result = await instance.process(kwargs.get("state"))
                 await instance.on_complete(result)
                 return result
+            else:
+                raise AttributeError(f"{cls.__name__} 必须实现 process() 方法")
 
         # 注册到 langgraph 节点
         oven.pancake_dough.setdefault("langgraph_node", {})[name] = wrapper

@@ -133,8 +133,12 @@ class RedisBroker(MessageBroker):
         logger.info(f"订阅 Redis 主题: {topic}")
 
     async def _listen(self) -> None:
-        """监听 Redis 消息"""
+        """监听 Redis 消息（指数退避重试）"""
         import json
+        consecutive_failures = 0
+        max_backoff = 30  # 最大退避时间（秒）
+        max_failures = 10  # 连续失败超过此次数停止重试
+
         while True:
             try:
                 if self._pubsub:
@@ -143,13 +147,19 @@ class RedisBroker(MessageBroker):
                         topic = message["channel"].decode() if isinstance(message["channel"], bytes) else message["channel"]
                         data = json.loads(message["data"])
                         await self._process_message(topic, data)
+                    consecutive_failures = 0  # 成功接收，重置计数
                 else:
                     await asyncio.sleep(1)
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Redis 监听错误: {e}")
-                await asyncio.sleep(1)
+                consecutive_failures += 1
+                if consecutive_failures >= max_failures:
+                    logger.error(f"Redis 监听连续失败 {consecutive_failures} 次，停止重试: {e}")
+                    break
+                backoff = min(2 ** (consecutive_failures - 1), max_backoff)
+                logger.warning(f"Redis 监听错误 (第 {consecutive_failures} 次，{backoff}s 后重试): {e}")
+                await asyncio.sleep(backoff)
 
     async def _process_message(self, topic: str, message: dict) -> None:
         """处理消息"""

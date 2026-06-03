@@ -46,14 +46,17 @@ class Main(InitAction):
         spec.loader.exec_module(load_src)
 
         self.external_plugin_dirs = _get_external_plugin_dirs()
-        items = []
+        total_count = 0
 
-        for dir in self.external_plugin_dirs:
-            items = load_src.parse_file(dir)
-            for decorator_name, obj_type, obj_name, path in items:
-                load_src.safe_register(path)
+        for plugin_dir in self.external_plugin_dirs:
+            py_files = load_src.scan_py_files(plugin_dir)
+            for filepath in py_files:
+                items = load_src.parse_file(filepath)
+                if items:
+                    load_src.safe_register(filepath)
+                    total_count += len(items)
 
-        logger.info(f"成功加载 {len(items)} 个外部插件")
+        logger.info(f"成功加载 {total_count} 个外部插件")
 
     def build(self):
         pass
