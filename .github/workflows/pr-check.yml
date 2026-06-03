@@ -2,7 +2,7 @@ name: PR Check
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [master, main, dev]
     types: [opened, synchronize, reopened]
 
 jobs:
