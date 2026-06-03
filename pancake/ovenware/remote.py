@@ -63,8 +63,9 @@ class HttpRemote:
 class GrpcRemote:
     """gRPC 远程调用"""
 
-    def __init__(self, target: str = "localhost:50051"):
-        self.target = target
+    def __init__(self, target: str = None):
+        from pancake import settings
+        self.target = target or settings.get("grpc.url")
         self._channel = None
         self._stubs = {}
 
@@ -177,7 +178,8 @@ def remote_node(name: str = None, protocol: str = "http",
                 elif protocol == "grpc":
                     if not service:
                         raise ValueError("gRPC 协议需要指定 service")
-                    client = proxy.get_grpc(url or "localhost:50051")
+                    from pancake import settings
+                    client = proxy.get_grpc(url or settings.get("grpc.url"))
                     result = await client.call(service, endpoint or name, params)
                 else:
                     raise ValueError(f"不支持的协议: {protocol}")

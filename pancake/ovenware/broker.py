@@ -80,8 +80,9 @@ class SimpleBroker(MessageBroker):
 class RedisBroker(MessageBroker):
     """Redis 消息队列"""
 
-    def __init__(self, url: str = "redis://localhost:6379"):
-        self.url = url
+    def __init__(self, url: str = None):
+        from pancake import settings
+        self.url = url or settings.get("redis.url")
         self._redis = None
         self._pubsub = None
         self._handlers: dict[str, list[Callable]] = defaultdict(list)
