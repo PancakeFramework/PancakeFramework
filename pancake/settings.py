@@ -18,6 +18,8 @@ _DEFAULTS = {
     "paths.mapper_dir": os.path.join("src", "mapper"),
     "paths.controller_dir": os.path.join("src", "controller"),
     "paths.db_dir": os.path.join("src", "resource", "db"),
+    "paths.template_dir": os.path.join("src", "templates"),
+    "paths.static_dir": os.path.join("src", "static"),
 
     # 服务配置
     "service.title": "Pancake App",

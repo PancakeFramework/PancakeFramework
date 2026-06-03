@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pancake_framework"
-version = "0.1.1"
+version = "0.1.2"
 description = "Pancake - Decorator-driven Python web framework with IoC, MyBatis ORM, and AI workflow"
 authors = ["drayee <1473443474@qq.com>"]
 license = "MIT"
@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "pancake"}]
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.10"
 requests = "^2.33.1"
 fastapi = "^0.136.1"
 uvicorn = "^0.46.0"
@@ -31,6 +31,8 @@ psycopg2-binary = {version = "^2.9.0", optional = true}
 pymongo = {version = "^4.0.0", optional = true}
 click = {version = "^8.0.0", optional = true}
 flet = {version = "^0.85.0", optional = true}
+jinja2 = {version = "^3.1.0", optional = true}
+python-multipart = {version = "^0.0.18", optional = true}
 
 [tool.poetry.extras]
 langgraph = ["langgraph"]
@@ -41,7 +43,8 @@ redis = ["redis"]
 ai = ["openai", "google-genai", "tiktoken", "psycopg2-binary", "pymongo"]
 cui = ["click"]
 gui = ["flet"]
-all = ["langgraph", "websocket-client", "aiohttp", "grpcio", "redis", "openai", "google-genai", "tiktoken", "psycopg2-binary", "pymongo", "click", "flet"]
+web = ["jinja2", "python-multipart"]
+all = ["langgraph", "websocket-client", "aiohttp", "grpcio", "redis", "openai", "google-genai", "tiktoken", "psycopg2-binary", "pymongo", "click", "flet", "jinja2", "python-multipart"]
 
 [tool.poetry.scripts]
 pancake = "pancake.cli:main"

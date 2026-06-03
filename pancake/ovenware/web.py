@@ -3,16 +3,20 @@ Web 服务插件
 提供 Web 服务的构建和运行功能，支持完整 HTTP 方法、认证授权、事务、中间件、参数校验
 """
 
+import asyncio
 import functools
 import inspect
 import logging
+import os
 import time
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Callable
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Response, WebSocket
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
@@ -380,6 +384,37 @@ def patch_controller(path: str, name: str = None, tags: list[str] = None) -> Cal
     return _register_controller("PATCH", path, name, tags)
 
 
+def page_controller(path: str, template: str, name: str = None, tags: list[str] = None) -> Callable:
+    """页面控制器装饰器 — 渲染 Jinja2 模板返回 HTML
+
+    装饰的函数返回 dict，作为模板的 context 变量。
+
+    用法:
+        @page_controller("/home", template="home.html")
+        async def home():
+            return {"title": "首页", "message": "Hello"}
+
+        @page_controller("/users", template="users.html")
+        async def users_page():
+            users = await UserMapper().select_list()
+            return {"users": users}
+    """
+    def decorator(func: Callable) -> Callable:
+        nonlocal name
+        if name is None:
+            name = func.__name__
+        oven.pancake_other["path"][name] = path
+        oven.pancake_dough.setdefault("PageController", {})[name] = {
+            "func": func,
+            "template": template,
+        }
+        if tags:
+            oven.pancake_other.setdefault("tags", {})[name] = tags
+        logger.info(f"PageController {name} 已加入库: {path} -> {template}")
+        return func
+    return decorator
+
+
 # ---- 兼容旧接口 ----
 
 def post_auto_controller(path: str, name: str = None) -> Callable:
@@ -405,6 +440,7 @@ class Main(InitAction):
         # 初始化所有 HTTP 方法的控制器注册表
         for key in _METHOD_REGISTRY_KEYS.values():
             oven.pancake_dough[key] = {}
+        oven.pancake_dough["PageController"] = {}
         oven.pancake_other["path"] = {}
 
         self.service_title: str = oven.pancake_yaml.get("service.title", "Pancake")
@@ -428,11 +464,45 @@ class Main(InitAction):
             openapi_url=openapi_url,
         )
 
+        # 模板和静态文件配置
+        self.template_dir = oven.pancake_yaml.get("service.template_dir", os.path.join("src", "templates"))
+        self.static_dir = oven.pancake_yaml.get("service.static_dir", os.path.join("src", "static"))
+        self.static_url = oven.pancake_yaml.get("service.static_url", "/static")
+
+        # 初始化 Jinja2 环境
+        self._jinja_env = None
+        try:
+            from jinja2 import Environment, FileSystemLoader
+            template_path = Path(self.template_dir)
+            if template_path.is_absolute():
+                abs_template_dir = str(template_path)
+            else:
+                abs_template_dir = str(Path(os.getcwd()) / template_path)
+            if os.path.isdir(abs_template_dir):
+                self._jinja_env = Environment(loader=FileSystemLoader(abs_template_dir))
+                logger.info(f"Jinja2 模板目录: {abs_template_dir}")
+            else:
+                logger.warning(f"模板目录不存在: {abs_template_dir}，页面渲染功能不可用")
+        except ImportError:
+            logger.warning("jinja2 未安装，页面渲染功能不可用，请运行: pip install jinja2")
+
     @staticmethod
     def check():
         pass
 
     def build(self):
+        # 挂载静态文件目录
+        static_path = Path(self.static_dir)
+        if static_path.is_absolute():
+            abs_static_dir = str(static_path)
+        else:
+            abs_static_dir = str(Path(os.getcwd()) / static_path)
+        if os.path.isdir(abs_static_dir):
+            self.app.mount(self.static_url, StaticFiles(directory=abs_static_dir), name="static")
+            logger.info(f"静态文件已挂载: {self.static_url} -> {abs_static_dir}")
+        else:
+            logger.info(f"静态目录不存在: {abs_static_dir}，跳过挂载")
+
         # 注册中间件
         for mw in _middleware_registry:
             self.app.add_middleware(BaseHTTPMiddleware, dispatch=mw["func"])
@@ -477,6 +547,34 @@ class Main(InitAction):
                 self.app.websocket(path)(func)
                 logger.info(f"WebSocket 路由 {name} 已挂载: {path}")
 
+        # 注册页面控制器路由（Jinja2 模板渲染）
+        page_controllers = oven.pancake_dough.get("PageController", {})
+        tags_map = oven.pancake_other.get("tags", {})
+        for name, info in page_controllers.items():
+            path = oven.pancake_other["path"].get(name)
+            if path:
+                func = info["func"]
+                template_name = info["template"]
+                tags = tags_map.get(name)
+
+                def _make_page_handler(f, tpl):
+                    async def page_handler(**kwargs):
+                        context = await f(**kwargs) if asyncio.iscoroutinefunction(f) else f(**kwargs)
+                        if not isinstance(context, dict):
+                            context = {}
+                        if self._jinja_env:
+                            template = self._jinja_env.get_template(tpl)
+                            html = template.render(**context)
+                            return HTMLResponse(content=html)
+                        else:
+                            return HTMLResponse(content=f"<h1>模板引擎未安装</h1><p>请安装 jinja2: pip install jinja2</p>")
+                    functools.wraps(f)(page_handler)
+                    return page_handler
+
+                handler = _make_page_handler(func, template_name)
+                self.app.add_api_route(path, handler, methods=["GET"], tags=tags)
+                logger.info(f"PageController 路由 {name} 已挂载: {path} -> {template_name}")
+
     def loop_method(self):
         logger.info(f"启动服务 {self.service_title}，监听地址 {self.service_host}:{self.service_port}")
         uvicorn.run(self.app, host=self.service_host, port=self.service_port)
@@ -493,6 +591,7 @@ oven.muffin_flour["post_controller"] = post_controller
 oven.muffin_flour["put_controller"] = put_controller
 oven.muffin_flour["delete_controller"] = delete_controller
 oven.muffin_flour["patch_controller"] = patch_controller
+oven.muffin_flour["page_controller"] = page_controller
 
 # 认证 / 授权
 oven.muffin_flour["auth_required"] = auth_required
