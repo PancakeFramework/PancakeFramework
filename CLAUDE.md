@@ -8,7 +8,7 @@ Pancake 是一个全栈 Python 框架，核心理念是"零 import"——通过 
 
 ## 技术栈
 
-- Python 3.13+
+- Python 3.10+
 - Poetry 依赖管理
 - FastAPI + Uvicorn (Web 服务)
 - databases + aiosqlite (异步 ORM)
