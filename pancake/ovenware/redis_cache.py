@@ -28,10 +28,11 @@ logger = logging.getLogger(__name__)
 class RedisClient:
     """Redis 客户端封装"""
 
-    def __init__(self, url: str = "redis://localhost:6379", db: int = 0,
+    def __init__(self, url: str = None, db: int = 0,
                  password: str = None, key_prefix: str = "pancake:",
                  default_ttl: int = 3600):
-        self.url = url
+        from pancake import settings
+        self.url = url or settings.get("redis.url")
         self.db = db
         self.password = password
         self.key_prefix = key_prefix
@@ -540,8 +541,9 @@ class Main(InitAction):
     _extras = "redis"
 
     def __init__(self):
-        url = oven.pancake_yaml.get("redis.url", "redis://localhost:6379")
-        db = int(oven.pancake_yaml.get("redis.db", 0))
+        from pancake import settings
+        url = oven.pancake_yaml.get("redis.url", settings.get("redis.url"))
+        db = int(oven.pancake_yaml.get("redis.db", settings.get("redis.db")))
         password = oven.pancake_yaml.get("redis.password")
         prefix = oven.pancake_yaml.get("redis.key_prefix", "pancake:")
         default_ttl = int(oven.pancake_yaml.get("redis.default_ttl", 3600))

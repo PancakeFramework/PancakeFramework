@@ -271,7 +271,8 @@ class OllamaProvider(BaseProvider):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.base_url = config.get("base_url", "http://localhost:11434")
+        from pancake import settings
+        self.base_url = config.get("base_url", settings.get("ollama.url"))
 
     async def chat(self, messages: list[dict], **kwargs) -> str:
         import aiohttp
