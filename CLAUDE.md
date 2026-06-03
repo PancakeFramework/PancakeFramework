@@ -213,59 +213,15 @@ git commit -m "<描述>"
 | `dev` | 开发分支，日常开发基于此分支 | PR 合并 |
 | `feat/xxx` | 功能分支，从 `dev` 创建 | 自由推送 |
 | `fix/xxx` | 修复分支 | 自由推送 |
-| `release/vX.Y.Z` | 发布分支，从 `dev` 创建 | PR 合并到 `main` |
-| `ci/xxx` | CI/CD 配置分支 | PR 合并到 `main` |
 
-**禁止直接向 `main` / `dev` 推送代码，必须通过 Pull Request 合并。**
-
-#### 工作流程
-
-**核心原则：先创建分支，再写代码。禁止在 main/dev 上直接修改后迁移。**
-
-```bash
-# 正确 ✓
-git checkout -b feat/your-feature dev
-# 写代码...
-git add <文件> && git commit -m "feat: ..."
-git push origin feat/your-feature
-
-# 错误 ✗ — 先写代码再迁移，容易误提交到 main
-```
-
-标准流程:
+工作流程:
 1. 从 `dev` 创建分支: `git checkout -b feat/your-feature dev`
 2. 开发完成后推送: `git push origin feat/your-feature`
 3. 在 GitHub 创建 Pull Request，目标分支为 `dev`
 4. 等待 CI 通过 + Code Review
 5. 合并后删除功能分支
 
-#### 发布流程
-
-```bash
-# 1. 从 dev 创建 release 分支
-git checkout -b release/v0.1.3 dev
-
-# 2. 更新版本号
-poetry version patch  # 或 minor / major
-git add pyproject.toml && git commit -m "chore: 发布 v0.1.3"
-
-# 3. 推送并创建 PR 到 main
-git push origin release/v0.1.3
-# 在 GitHub 创建 PR: release/v0.1.3 → main
-
-# 4. PR 合并后自动触发 GitHub Actions:
-#    - 运行测试
-#    - 构建 whl
-#    - 发布到 PyPI
-#    - 自动打 tag (v0.1.3)
-#    - 创建 GitHub Release
-```
-
-发布原则:
-- 一个 release 分支只做一个版本的发布
-- 版本号必须在 release 分支上更新，不要在 dev 上改
-- PR 合并到 main 后自动 publish，不需要手动打 tag
-- CI/CD 配置变更使用独立的 `ci/xxx` 分支，不混入 release
+**禁止直接向 `main` / `dev` 推送代码，必须通过 Pull Request 合并。**
 
 #### Commit 消息规范
 
