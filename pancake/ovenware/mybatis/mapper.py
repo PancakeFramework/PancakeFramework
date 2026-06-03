@@ -186,22 +186,6 @@ class BaseMapper:
         rows = await db.fetch_all(query=sql, values=values)
         return _rows_to_entities(rows, self._entity_class)
 
-    async def select_one(self, **kwargs) -> Any:
-        """条件查询单条"""
-        db = get_database()
-        where, values = _build_where_from_dict(kwargs)
-        sql = f"SELECT * FROM {self._table_name}{where} LIMIT 1"
-        row = await db.fetch_one(query=sql, values=values)
-        return _row_to_entity(row, self._entity_class)
-
-    async def select_count(self, **kwargs) -> int:
-        """条件计数"""
-        db = get_database()
-        where, values = _build_where_from_dict(kwargs)
-        sql = f"SELECT COUNT(*) as cnt FROM {self._table_name}{where}"
-        row = await db.fetch_one(query=sql, values=values)
-        return row["cnt"] if row else 0
-
     async def insert(self, **kwargs) -> int:
         """插入数据，返回 lastrowid"""
         db = get_database()
