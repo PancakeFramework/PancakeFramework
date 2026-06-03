@@ -26,9 +26,25 @@ _DEFAULTS = {
     "service.version": "1.0.0",
     "service.host": "127.0.0.1",
     "service.port": 8080,
+    "service.description": "",
+    "service.docs_enabled": True,
+    "service.metrics_enabled": True,
+    "service.timeout": 30,
 
     # 数据库配置
     "mybatis.database.url": None,  # 由 mybatis config 提供默认值
+
+    # 外部服务地址
+    "redis.url": "redis://localhost:6379",
+    "redis.db": 0,
+    "mongo.url": "mongodb://localhost:27017",
+    "mongo.db": "pancake",
+    "grpc.url": "localhost:50051",
+    "ollama.url": "http://localhost:11434",
+
+    # AI 配置
+    "ai.timeout": 60,
+    "ai.retry": 3,
 }
 
 # 用户配置（从 XML/YAML 加载）

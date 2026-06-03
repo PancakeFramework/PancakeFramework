@@ -142,9 +142,10 @@ class RedisBackend(MemoryBackend):
     持久化，支持多 agent 共享
     """
 
-    def __init__(self, url: str = "redis://localhost:6379", db: int = 0):
+    def __init__(self, url: str = None, db: int = 0):
+        from pancake import settings
         from .redis_cache import RedisClient
-        self._client = RedisClient(url=url, db=db, key_prefix="")
+        self._client = RedisClient(url=url or settings.get("redis.url"), db=db, key_prefix="")
 
     def _ns_key(self, namespace: str, key: str) -> str:
         return f"ai:{namespace}:{key}"
@@ -275,9 +276,10 @@ def _create_memory_backend(config: dict) -> MemoryBackend:
     backend = config.get("backend", "memory")
     table_name = config.get("table_name", "ai_memory")
     if backend == "redis":
+        from pancake import settings
         return RedisBackend(
-            url=config.get("redis_url", "redis://localhost:6379"),
-            db=config.get("redis_db", 0),
+            url=config.get("redis_url", settings.get("redis.url")),
+            db=config.get("redis_db", settings.get("redis.db")),
         )
     elif backend == "mybatis":
         return MyBatisBackend(table_name=table_name)
@@ -537,9 +539,10 @@ class RedisVectorBackend(VectorBackend):
     复用 redis_cache.RedisClient
     """
 
-    def __init__(self, url: str = "redis://localhost:6379", db: int = 0):
+    def __init__(self, url: str = None, db: int = 0):
+        from pancake import settings
         from .redis_cache import RedisClient
-        self._client = RedisClient(url=url, db=db, key_prefix="")
+        self._client = RedisClient(url=url or settings.get("redis.url"), db=db, key_prefix="")
         self._redis = None
         self._collections_created: set[str] = set()
 
@@ -644,9 +647,10 @@ class MongoVectorBackend(VectorBackend):
     MongoDB Atlas Vector Search 后端
     """
 
-    def __init__(self, url: str = "mongodb://localhost:27017", db_name: str = "pancake"):
-        self._url = url
-        self._db_name = db_name
+    def __init__(self, url: str = None, db_name: str = None):
+        from pancake import settings
+        self._url = url or settings.get("mongo.url")
+        self._db_name = db_name or settings.get("mongo.db")
         self._client = None
         self._db = None
         self._collections_created: set[str] = set()
@@ -744,19 +748,20 @@ class MongoVectorBackend(VectorBackend):
 
 def _create_vector_backend(config: dict) -> VectorBackend:
     """根据配置创建向量后端"""
+    from pancake import settings
     backend = config.get("backend", "pgvector")
     if backend == "pgvector":
         return PgVectorBackend()
     elif backend == "redis":
         return RedisVectorBackend(
-            url=config.get("redis_url", "redis://localhost:6379"),
-            db=config.get("redis_db", 0),
+            url=config.get("redis_url", settings.get("redis.url")),
+            db=config.get("redis_db", settings.get("redis.db")),
         )
     elif backend == "mongodb":
-        url = config.get("mongo_url", "mongodb://localhost:27017")
+        url = config.get("mongo_url", settings.get("mongo.url"))
         if isinstance(url, str) and url.startswith("${"):
-            url = os.environ.get(url[2:-1], "mongodb://localhost:27017")
-        db_name = config.get("mongo_db", "pancake")
+            url = os.environ.get(url[2:-1], settings.get("mongo.url"))
+        db_name = config.get("mongo_db", settings.get("mongo.db"))
         return MongoVectorBackend(url=url, db_name=db_name)
     else:
         raise ValueError(f"不支持的 RAG 后端: {backend}，支持: pgvector, redis, mongodb")
