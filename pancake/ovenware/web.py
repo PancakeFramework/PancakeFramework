@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Response, WebSocket
+from fastapi import FastAPI, Body, Depends, HTTPException, Request, Response, WebSocket
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -364,6 +364,66 @@ def websocket_controller(path: str, name: str = None):
 #  控制器装饰器（统一处理所有 HTTP 方法）
 # ============================================================
 
+# 基础类型：不需要 Body 标注，FastAPI 自动当 query/path 参数
+_PRIMITIVE_TYPES = {str, int, float, bool, type(None)}
+
+# 已知的 FastAPI 参数类型，跳过不处理
+_SKIP_PARAMS = {"request", "self", "current_user", "websocket"}
+
+
+def _auto_annotate_body(func: Callable) -> Callable:
+    """自动为复杂类型参数添加 Body() 标注
+
+    FastAPI 的 add_api_route 不会自动将 list/dict 等复杂类型识别为 body 参数，
+    需要显式添加 Body() 标注。此函数在注册路由前自动完成这一工作。
+    """
+    sig = inspect.signature(func)
+    params = list(sig.parameters.values())
+    modified = False
+
+    for i, param in enumerate(params):
+        # 跳过特殊参数
+        if param.name in _SKIP_PARAMS:
+            continue
+        # 跳过 *args, **kwargs
+        if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
+            continue
+        # 跳过已有默认值且默认值是 Depends/Body 等的参数
+        if param.default is not inspect.Parameter.empty:
+            # 如果默认值已经是 Body() 实例，跳过
+            if hasattr(param.default, '__class__') and param.default.__class__.__name__ == 'Body':
+                continue
+
+        # 检查类型注解是否为复杂类型
+        annotation = param.annotation
+        if annotation is inspect.Parameter.empty:
+            continue
+
+        # 获取原始类型（处理 Optional/Union 等）
+        origin = getattr(annotation, '__origin__', None)
+
+        is_complex = False
+        if origin in (list, dict, tuple, set, frozenset):
+            is_complex = True
+        elif origin is not None:
+            # 其他泛型类型（如 list[int], dict[str, Any] 等）
+            is_complex = True
+        elif annotation not in _PRIMITIVE_TYPES and not isinstance(annotation, type):
+            # 非类型对象（如 Annotated[..., Body(...)] 等）
+            is_complex = False
+        elif annotation not in _PRIMITIVE_TYPES:
+            # 自定义类（如 Pydantic BaseModel、dataclass 等）
+            is_complex = True
+
+        if is_complex:
+            params[i] = param.replace(default=Body(), annotation=annotation)
+            modified = True
+
+    if modified:
+        func.__signature__ = sig.replace(parameters=params)
+    return func
+
+
 def _register_controller(method: str, path: str, name: str | None = None, tags: list[str] | None = None):
     """通用控制器注册内部方法"""
     registry_key = _METHOD_REGISTRY_KEYS[method]
@@ -570,6 +630,7 @@ class Main(InitAction):
                 path = oven.pancake_other["path"].get(name)
                 if path:
                     tags = tags_map.get(name)
+                    _auto_annotate_body(func)
                     self.app.add_api_route(path, func, methods=[method], tags=tags)
 
         # 注册 WebSocket 路由
