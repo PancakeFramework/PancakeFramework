@@ -40,6 +40,16 @@ def cmd_version(args):
 
 
 # ============================================================
+#  cover — 显示封面
+# ============================================================
+
+def cmd_cover(args):
+    """显示 Pancake 封面"""
+    from pancake.initialize.print_ico import print_cover
+    print_cover()
+
+
+# ============================================================
 #  init — 在当前目录初始化项目
 # ============================================================
 
@@ -621,6 +631,9 @@ def main():
     # version
     subparsers.add_parser("version", help="显示框架版本")
 
+    # cover
+    subparsers.add_parser("cover", help="显示 Pancake 封面")
+
     # init
     subparsers.add_parser("init", help="在当前目录初始化项目")
 
@@ -666,6 +679,7 @@ def main():
 
     commands = {
         "version": cmd_version,
+        "cover": cmd_cover,
         "init": cmd_init,
         "create": cmd_create,
         "check": cmd_check,
