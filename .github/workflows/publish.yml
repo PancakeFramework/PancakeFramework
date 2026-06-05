@@ -50,7 +50,7 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         env:
           PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
-        run: poetry install --all-extras --with dev --no-interaction
+        run: poetry install --with dev --no-interaction
 
       - name: Run tests
         run: poetry run pytest tests/ -v --tb=short
@@ -138,6 +138,8 @@ jobs:
                   echo "⏭️ $plugin_name 版本 $VERSION 已存在，跳过"
                 fi
               fi
+            else
+              echo "⚠️ $plugin_name 缺少 pyproject.toml，跳过"
             fi
           done
           # 移除末尾逗号

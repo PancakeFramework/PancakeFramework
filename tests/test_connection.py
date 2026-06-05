@@ -2,6 +2,7 @@
 
 import pytest
 import asyncio
+pytest.importorskip("pancake_mybatis")
 from pancake_mybatis.connection import DatabaseManager, create_manager
 
 

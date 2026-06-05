@@ -1,6 +1,7 @@
 """GUI 插件测试"""
 
 import pytest
+pytest.importorskip("pancake_gui")
 from pancake import oven
 from pancake_gui.gui import (
     gui_page, gui_action,

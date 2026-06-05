@@ -2,6 +2,7 @@
 
 import pytest
 from unittest.mock import MagicMock
+pytest.importorskip("pancake_cui")
 from pancake import oven
 from pancake_cui.cui import (
     cui_command, cui_option, cui_argument,

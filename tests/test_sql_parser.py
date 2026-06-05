@@ -1,6 +1,7 @@
 """SQL 解析器测试"""
 
 import pytest
+pytest.importorskip("pancake_mybatis")
 from pancake_mybatis.sql_parser import parse_sql, _eval_test
 
 

@@ -7,8 +7,7 @@ builtins.__dict__["logging"] = logging
 
 from abc import ABC, abstractmethod
 
-# 导入 core 和 base 模块，确保基类和装饰器注册到 muffin_flour
-from pancake.ovenware import core  # noqa: F401
+# 导入 base 模块，确保基类和装饰器注册到 muffin_flour
 from pancake.ovenware import base  # noqa: F401
 
 logger = logging.getLogger(__name__)

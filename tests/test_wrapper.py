@@ -1,6 +1,7 @@
 """QueryWrapper / UpdateWrapper 链式查询测试"""
 
 import pytest
+pytest.importorskip("pancake_mybatis")
 from pancake_mybatis.wrapper import QueryWrapper, UpdateWrapper, qw, uw, ColumnRef, _resolve_column
 
 
