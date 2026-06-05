@@ -290,3 +290,17 @@ def on_event(event: str):
 # 注册到 muffin_flour，使其被 embed 自动注入到 builtins
 oven.muffin_flour["event_node"] = event_node
 oven.muffin_flour["on_event"] = on_event
+
+
+class Main(InitAction):
+    """消息队列插件主类"""
+
+    name = "broker"
+    init_order = 10
+    description = "消息队列: SimpleBroker / RedisBroker, 事件驱动和消息传递"
+
+    def __init__(self):
+        pass
+
+    def build(self):
+        logger.info("消息队列模块构建完成")

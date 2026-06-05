@@ -190,3 +190,17 @@ async def lifecycle_context():
         yield lifecycle_manager
     finally:
         await lifecycle_manager.shutdown_all()
+
+
+class Main(InitAction):
+    """生命周期管理插件主类"""
+
+    name = "lifecycle"
+    init_order = 10
+    description = "生命周期管理: 节点初始化、启动、停止、错误处理钩子"
+
+    def __init__(self):
+        pass
+
+    def build(self):
+        logger.info("生命周期管理模块构建完成")

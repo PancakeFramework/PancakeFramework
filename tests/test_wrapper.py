@@ -1,7 +1,7 @@
 """QueryWrapper / UpdateWrapper 链式查询测试"""
 
 import pytest
-from pancake.ovenware.mybatis.wrapper import QueryWrapper, UpdateWrapper, qw, uw, ColumnRef, _resolve_column
+from pancake_mybatis.wrapper import QueryWrapper, UpdateWrapper, qw, uw, ColumnRef, _resolve_column
 
 
 class TestResolveColumn:

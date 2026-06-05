@@ -2,10 +2,11 @@
 
 import pytest
 from pancake import oven
-from pancake.ovenware.gui import (
+from pancake_gui.gui import (
     gui_page, gui_action,
-    _PageInfo, _ActionInfo, _wrap_handler, Main,
+    _PageInfo, _ActionInfo, _wrap_handler,
 )
+from pancake_gui import Main
 
 
 class TestGuiPageDecorator:

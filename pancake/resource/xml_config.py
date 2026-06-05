@@ -69,24 +69,52 @@ def _find_xml_file() -> str | None:
     return None
 
 
+def _parse_dependencies(root) -> list[dict]:
+    """解析 <dependencies> 块"""
+    deps = []
+    deps_elem = root.find("dependencies")
+    if deps_elem is None:
+        return deps
+
+    for dep in deps_elem.findall("dependency"):
+        dep_info = {
+            "groupId": dep.findtext("groupId", "io.pancake"),
+            "artifactId": dep.findtext("artifactId", ""),
+            "version": dep.findtext("version"),
+            "optional": dep.findtext("optional", "false").lower() == "true",
+            "extras": dep.findtext("extras"),
+            "enabled": dep.findtext("enabled", "true").lower() != "false",
+        }
+        if dep_info["artifactId"]:
+            deps.append(dep_info)
+
+    return deps
+
+
+def _plugins_to_dependencies(plugins: list[dict]) -> list[dict]:
+    """旧 <plugins> 格式转为 <dependencies> 格式"""
+    return [
+        {
+            "groupId": "io.pancake",
+            "artifactId": p["name"],
+            "enabled": p.get("enabled", True),
+        }
+        for p in plugins
+    ]
+
+
 def load_xml(xml_path: str = None) -> dict:
     """
     加载并解析 pancake.xml
 
     Returns:
         {
-            "plugins": [
-                {
-                    "name": "web",
-                    "source": "ovenware.web",
-                    "init_order": 10,
-                    "build_order": 0,
-                    "enabled": True,
-                    "config": {"title": "My App", "port": 8080}
-                },
-                ...
-            ],
-            "config": {"log.level": "INFO", ...}
+            "plugins": [...],          # 旧格式兼容
+            "dependencies": [...],     # 新 Maven-like 格式
+            "config": {...},           # 全局配置
+            "groupId": "...",          # 项目元信息
+            "artifactId": "...",
+            "version": "...",
         }
     """
     if xml_path is None:
@@ -94,11 +122,11 @@ def load_xml(xml_path: str = None) -> dict:
 
     if xml_path is None:
         logger.info("No pancake.xml found, using directory scanning mode")
-        return {"plugins": [], "config": {}}
+        return {"plugins": [], "dependencies": [], "config": {}}
 
     if not os.path.exists(xml_path):
         logger.warning(f"XML config not found: {xml_path}")
-        return {"plugins": [], "config": {}}
+        return {"plugins": [], "dependencies": [], "config": {}}
 
     logger.info(f"Loading XML config: {xml_path}")
 
@@ -107,15 +135,21 @@ def load_xml(xml_path: str = None) -> dict:
         root = tree.getroot()
     except ET.ParseError as e:
         logger.error(f"XML parse error: {e}")
-        return {"plugins": [], "config": {}}
+        return {"plugins": [], "dependencies": [], "config": {}}
 
-    result = {"plugins": [], "config": {}}
+    result = {
+        "plugins": [],
+        "dependencies": [],
+        "config": {},
+        "groupId": root.findtext("groupId", ""),
+        "artifactId": root.findtext("artifactId", ""),
+        "version": root.findtext("version", ""),
+    }
 
     # 解析全局配置：支持 <config> 和 <global> 两种写法
     global_config = root.find("config") or root.find("global")
     if global_config is not None:
         result["config"] = _parse_properties(global_config)
-        # 支持直接子元素格式：<service.title>xxx</service.title>
         for child in global_config:
             if child.tag != "property" and child.text and child.text.strip():
                 key = child.tag
@@ -123,42 +157,57 @@ def load_xml(xml_path: str = None) -> dict:
                 value = _resolve_env_vars(value)
                 result["config"][key] = _auto_convert(value)
 
-    # 解析 <plugins>
-    plugins_elem = root.find("plugins")
-    if plugins_elem is None:
-        logger.warning("No <plugins> section found in XML")
-        return result
+    # 优先解析 <dependencies>（新格式）
+    dependencies = _parse_dependencies(root)
+    if dependencies:
+        result["dependencies"] = dependencies
+        # 同时生成 plugins 列表（向后兼容）
+        result["plugins"] = [
+            {
+                "name": dep["artifactId"],
+                "source": f"ovenware.{dep['artifactId']}",
+                "init_order": 0,
+                "build_order": 0,
+                "enabled": dep.get("enabled", True),
+                "config": {},
+            }
+            for dep in dependencies
+            if dep.get("groupId") == "io.pancake"
+        ]
+    else:
+        # 回退到旧 <plugins> 格式
+        plugins_elem = root.find("plugins")
+        if plugins_elem is not None:
+            for plugin_elem in plugins_elem.findall("plugin"):
+                name = plugin_elem.get("name")
+                source = plugin_elem.get("source")
+                if not name:
+                    logger.warning("Plugin missing name, skipping")
+                    continue
+                if not source:
+                    source = f"ovenware.{name}"
 
-    for plugin_elem in plugins_elem.findall("plugin"):
-        name = plugin_elem.get("name")
-        source = plugin_elem.get("source")
-        if not name:
-            logger.warning("Plugin missing name, skipping")
-            continue
-        if not source:
-            # 从 name 推导 source，如 "web" -> "ovenware.web"
-            source = f"ovenware.{name}"
+                init_order = int(plugin_elem.get("init-order", "0"))
+                build_order = int(plugin_elem.get("build-order", "0"))
+                enabled = plugin_elem.get("enabled", "true").lower() == "true"
 
-        # 解析属性
-        init_order = int(plugin_elem.get("init-order", "0"))
-        build_order = int(plugin_elem.get("build-order", "0"))
-        enabled = plugin_elem.get("enabled", "true").lower() == "true"
+                plugin_config = {}
+                plugin_config_elem = plugin_elem.find("config")
+                if plugin_config_elem is not None:
+                    plugin_config = _parse_properties(plugin_config_elem)
 
-        # 解析插件级 <config>
-        plugin_config = {}
-        plugin_config_elem = plugin_elem.find("config")
-        if plugin_config_elem is not None:
-            plugin_config = _parse_properties(plugin_config_elem)
+                plugin_info = {
+                    "name": name,
+                    "source": source,
+                    "init_order": init_order,
+                    "build_order": build_order,
+                    "enabled": enabled,
+                    "config": plugin_config,
+                }
+                result["plugins"].append(plugin_info)
 
-        plugin_info = {
-            "name": name,
-            "source": source,
-            "init_order": init_order,
-            "build_order": build_order,
-            "enabled": enabled,
-            "config": plugin_config,
-        }
-        result["plugins"].append(plugin_info)
+            # 同时生成 dependencies（向后兼容）
+            result["dependencies"] = _plugins_to_dependencies(result["plugins"])
 
     # 按 init_order 排序
     result["plugins"].sort(key=lambda p: p["init_order"])

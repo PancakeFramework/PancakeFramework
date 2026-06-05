@@ -7,6 +7,23 @@ import pytest
 # 确保 pancake 包可导入
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# 添加插件包路径
+plugin_dirs = [
+    "pancake-mybatis",
+    "pancake-redis",
+    "pancake-ai",
+    "pancake-cui",
+    "pancake-gui",
+    "pancake-remote",
+    "pancake-langgraph",
+    "pancake-embed",
+    "pancake-web",
+]
+for plugin_dir in plugin_dirs:
+    plugin_path = os.path.join(os.path.dirname(__file__), "..", plugin_dir)
+    if os.path.isdir(plugin_path):
+        sys.path.insert(0, plugin_path)
+
 
 @pytest.fixture
 def pancake_registry():

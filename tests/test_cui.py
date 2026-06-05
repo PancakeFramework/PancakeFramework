@@ -3,10 +3,11 @@
 import pytest
 from unittest.mock import MagicMock
 from pancake import oven
-from pancake.ovenware.cui import (
+from pancake_cui.cui import (
     cui_command, cui_option, cui_argument,
-    _CommandInfo, _make_click_callback, Main,
+    _CommandInfo, _make_click_callback,
 )
+from pancake_cui import Main
 
 
 class TestCuiCommandDecorator:

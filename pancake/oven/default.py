@@ -15,22 +15,23 @@ def pancake_default_before():
         "path": {},
         "System": {}
     })
-    from pancake.resource import json, yml
-    oven.pancake_json.update(json.json_init())
-    oven.pancake_yaml.update(yml.yaml_init())
-    oven.pancake_yaml.setdefault("framework.disable_dlc", [])
 
-    # 将 XML 全局配置合并到 pancake_yaml（XML 优先级高于 YAML）
-    xml_config = oven.pancake_xml.get("config", {})
-    if xml_config:
-        oven.pancake_yaml.update(xml_config)
+    # 配置加载已移至 ConfigFactory（run.py load_config）
+    # 保留向后兼容：如果 ConfigFactory 未初始化，回退到旧方式
+    if not oven.pancake_yaml:
+        from pancake.resource import json, yml
+        oven.pancake_json.update(json.json_init())
+        oven.pancake_yaml.update(yml.yaml_init())
+        oven.pancake_yaml.setdefault("framework.disable_dlc", [])
 
-    # 将 XML 插件配置合并到 pancake_yaml
-    # 插件 config 中的 key 就是完整的 YAML key（如 service.title、mybatis.database.url）
-    for plugin in oven.pancake_xml.get("plugins", []):
-        plugin_config = plugin.get("config", {})
-        if plugin_config:
-            oven.pancake_yaml.update(plugin_config)
+        xml_config = oven.pancake_xml.get("config", {})
+        if xml_config:
+            oven.pancake_yaml.update(xml_config)
+
+        for plugin in oven.pancake_xml.get("plugins", []):
+            plugin_config = plugin.get("config", {})
+            if plugin_config:
+                oven.pancake_yaml.update(plugin_config)
 
 def muffin_default_before():
     from pancake import oven

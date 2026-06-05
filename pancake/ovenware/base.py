@@ -6,6 +6,10 @@ from .inject import auto_inject
 
 logger = logging.getLogger(__name__)
 
+# 确保 Service 注册表存在
+oven.pancake_dough.setdefault("Service", {})
+oven.pancake_pie.setdefault("Service", {})
+
 """
     服务装饰器
 """

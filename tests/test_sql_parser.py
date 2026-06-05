@@ -1,7 +1,7 @@
 """SQL 解析器测试"""
 
 import pytest
-from pancake.ovenware.mybatis.sql_parser import parse_sql, _eval_test
+from pancake_mybatis.sql_parser import parse_sql, _eval_test
 
 
 class TestEvalTest:

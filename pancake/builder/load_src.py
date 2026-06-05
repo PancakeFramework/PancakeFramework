@@ -50,6 +50,17 @@ def parse_file(filepath):
             # 匹配 muffin_flour 中的装饰器
             if dec_name in oven.muffin_flour.keys():
                 results.append((dec_name, obj_type, obj_name, filepath))
+
+        # 检查基类是否在 muffin_flour 中（如 class User(Struct)）
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                base_name = None
+                if isinstance(base, ast.Name):
+                    base_name = base.id
+                elif isinstance(base, ast.Attribute):
+                    base_name = base.attr
+                if base_name and base_name in oven.muffin_flour:
+                    results.append((base_name, obj_type, obj_name, filepath))
     return results
 
 def safe_register(filepath):
@@ -65,11 +76,16 @@ def safe_register(filepath):
     except SyntaxError:
         return
 
-    # 收集所有顶级定义
+    # 收集所有顶级定义（排除 if __name__ == "__main__" 等守卫）
     definitions = []
     for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom)):
-            definitions.append(node)
+        # 排除 if __name__ == "__main__" 守卫
+        if isinstance(node, ast.If):
+            if (isinstance(node.test, ast.Compare)
+                    and isinstance(node.test.left, ast.Name)
+                    and node.test.left.id == "__name__"):
+                continue
+        definitions.append(node)
 
     if not definitions:
         return
@@ -85,11 +101,6 @@ def safe_register(filepath):
         traceback.print_exc()
         return
 
-    # 将文件中定义的名称注入 builtins，实现跨文件零 import
-    for node in definitions:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            if node.name in _shared_globals:
-                builtins.__dict__[node.name] = _shared_globals[node.name]
 
 def run():
     from pancake.settings import get_path
@@ -110,5 +121,13 @@ def run():
 
     file_items.sort(key=lambda x: x[0])
 
-    for _, path, _ in file_items:
+    # 按文件路径去重，保留优先级最高的条目
+    seen = set()
+    unique_items = []
+    for item in file_items:
+        if item[1] not in seen:
+            seen.add(item[1])
+            unique_items.append(item)
+
+    for _, path, _ in unique_items:
         safe_register(path)

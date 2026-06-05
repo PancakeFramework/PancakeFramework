@@ -83,17 +83,31 @@ def cmd_init(args):
     with open("pancake.xml", "w", encoding="utf-8") as f:
         f.write(f'''<?xml version="1.0" encoding="UTF-8"?>
 <pancake>
+    <groupId>com.example</groupId>
+    <artifactId>{name}</artifactId>
+    <version>1.0.0</version>
+
     <global>
         <service.title>{name}</service.title>
         <service.version>1.0.0</service.version>
         <service.host>127.0.0.1</service.host>
         <service.port>8080</service.port>
     </global>
-    <plugins>
-        <plugin name="embed" init-order="0"/>
-        <plugin name="mybatis" init-order="1"/>
-        <plugin name="web" init-order="2"/>
-    </plugins>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.pancake</groupId>
+            <artifactId>embed</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.pancake</groupId>
+            <artifactId>mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.pancake</groupId>
+            <artifactId>web</artifactId>
+        </dependency>
+    </dependencies>
 </pancake>
 ''')
 
@@ -143,17 +157,31 @@ def cmd_create(args):
     with open(os.path.join(project_dir, "pancake.xml"), "w", encoding="utf-8") as f:
         f.write(f'''<?xml version="1.0" encoding="UTF-8"?>
 <pancake>
+    <groupId>com.example</groupId>
+    <artifactId>{name}</artifactId>
+    <version>1.0.0</version>
+
     <global>
         <service.title>{name}</service.title>
         <service.version>1.0.0</service.version>
         <service.host>127.0.0.1</service.host>
         <service.port>8080</service.port>
     </global>
-    <plugins>
-        <plugin name="embed" init-order="0"/>
-        <plugin name="mybatis" init-order="1"/>
-        <plugin name="web" init-order="2"/>
-    </plugins>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.pancake</groupId>
+            <artifactId>embed</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.pancake</groupId>
+            <artifactId>mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.pancake</groupId>
+            <artifactId>web</artifactId>
+        </dependency>
+    </dependencies>
 </pancake>
 ''')
 

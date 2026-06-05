@@ -32,10 +32,57 @@ def load_dish():
     builder.load_src.run()
 
 def run_loop_methods():
-    """运行所有 loop_method"""
-    for name, method in oven.muffin_egg.get("LoopMethod", {}).items():
+    """运行所有 loop_method（并发执行，避免互相阻塞）
+
+    web 服务器始终在主线程运行（保持进程存活），
+    其余 loop_method 在守护线程中运行。
+    """
+    import threading
+
+    loop_methods = oven.muffin_egg.get("LoopMethod", {})
+    if not loop_methods:
+        return
+
+    if len(loop_methods) == 1:
+        name, method = next(iter(loop_methods.items()))
         logger.info(f"运行 loop_method: {name}")
         method()
+        return
+
+    # 多个 loop_method：web 在主线程，其余在守护线程
+    items = list(loop_methods.items())
+
+    # 找到 web 相关的 loop_method 放主线程
+    main_idx = 0
+    for i, (name, method) in enumerate(items):
+        if "web" in name.lower():
+            main_idx = i
+            break
+
+    for i, (name, method) in enumerate(items):
+        if i == main_idx:
+            continue
+        logger.info(f"运行 loop_method (后台): {name}")
+        t = threading.Thread(target=method, daemon=True, name=f"loop_{name}")
+        t.start()
+
+    main_name, main_method = items[main_idx]
+    logger.info(f"运行 loop_method (主线程): {main_name}")
+    main_method()
+
+def build_plugins():
+    """构建插件（在用户代码加载后执行，确保控制器等已注册）"""
+    factory = oven.pancake_other.get("plugin_factory")
+    if factory:
+        factory.build_all()
+        # 注册生命周期钩子
+        for hook in factory.get_startup_hooks():
+            oven.muffin_egg.setdefault("on_startup", []).append(hook)
+        for hook in factory.get_shutdown_hooks():
+            oven.muffin_egg.setdefault("on_shutdown", []).append(hook)
+        # 注册 loop_methods
+        for name, method in factory.get_loop_methods().items():
+            oven.muffin_egg["LoopMethod"][name] = method
 
 def build_all():
     """构建服务"""

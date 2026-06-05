@@ -2,7 +2,7 @@
 
 import pytest
 import asyncio
-from pancake.ovenware.mybatis.connection import DatabaseManager, create_manager
+from pancake_mybatis.connection import DatabaseManager, create_manager
 
 
 class TestDatabaseManager:

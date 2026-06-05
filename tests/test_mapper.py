@@ -2,7 +2,7 @@
 
 import pytest
 from dataclasses import dataclass
-from pancake.ovenware.mybatis.mapper import (
+from pancake_mybatis.mapper import (
     _validate_identifier, _get_table_name, _row_to_entity,
     _build_where_from_dict, BaseMapper, Mapper, get_registered_mappers,
 )
