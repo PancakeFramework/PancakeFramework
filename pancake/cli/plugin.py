@@ -1,160 +1,134 @@
-"""插件管理命令：plugin list/add/remove/clear"""
+"""插件管理命令：plugin list/add/remove/clear
 
-import ast
+插件格式与 pancake.xml 的 <dependencies> 一致：
+  <dependency>
+    <groupId>io.pancake</groupId>
+    <artifactId>mybatis</artifactId>
+  </dependency>
+"""
+
 import os
 import sys
 import xml.etree.ElementTree as ET
 
 
-def _find_ovenware_dir():
-    """找到 ovenware 目录"""
-    dlc_dir = os.path.join(os.path.dirname(__file__), "..", "ovenware")
-    if os.path.isdir(dlc_dir):
-        return dlc_dir
-    return None
+def _get_xml_path():
+    """获取 pancake.xml 路径"""
+    return os.path.join(os.getcwd(), "pancake.xml")
 
 
-def _get_disabled_plugins():
-    """从 pancake.xml 获取禁用的插件列表"""
-    disabled = set()
-    xml_path = os.path.join(os.getcwd(), "pancake.xml")
-    if not os.path.exists(xml_path):
-        return disabled
+def _parse_xml(xml_path):
+    """解析 XML，返回 (tree, root)"""
     try:
         tree = ET.parse(xml_path)
-        for plugin in tree.getroot().findall(".//plugin"):
-            name = plugin.get("name")
-            enabled = plugin.get("enabled", "true").lower()
-            if name and enabled == "false":
-                disabled.add(name)
-    except Exception:
-        pass
+        return tree, tree.getroot()
+    except ET.ParseError as e:
+        print(f"错误: XML 解析失败: {e}")
+        sys.exit(1)
+
+
+def _get_dependencies(root):
+    """从 XML 根节点获取所有 dependency 元素"""
+    deps_elem = root.find("dependencies")
+    if deps_elem is None:
+        return []
+    return deps_elem.findall("dependency")
+
+
+def _get_disabled_plugins(root):
+    """获取禁用的插件列表"""
+    disabled = set()
+    for dep in _get_dependencies(root):
+        enabled = dep.findtext("enabled", "true").lower()
+        artifact = dep.findtext("artifactId", "")
+        if artifact and enabled == "false":
+            disabled.add(artifact)
     return disabled
 
 
+def _find_or_create_deps_elem(root):
+    """找到或创建 <dependencies> 节点"""
+    deps_elem = root.find("dependencies")
+    if deps_elem is None:
+        deps_elem = ET.SubElement(root, "dependencies")
+    return deps_elem
+
+
+def _save_xml(tree, xml_path):
+    """格式化并写回 XML"""
+    ET.indent(tree, space="    ")
+    tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
+
+
 def cmd_plugin_list(args):
-    """列出可用插件"""
-    ovenware_dir = _find_ovenware_dir()
-    if not ovenware_dir:
-        print("错误: 找不到 ovenware 目录")
+    """列出 pancake.xml 中配置的插件"""
+    xml_path = _get_xml_path()
+    if not os.path.exists(xml_path):
+        print("错误: 当前目录没有 pancake.xml")
         sys.exit(1)
 
-    disabled = _get_disabled_plugins()
+    tree, root = _parse_xml(xml_path)
+    disabled = _get_disabled_plugins(root)
+    deps = _get_dependencies(root)
 
-    entries = os.listdir(ovenware_dir)
-    plugins = []
-
-    for entry in sorted(entries):
-        full = os.path.join(ovenware_dir, entry)
-        is_package = os.path.isdir(full) and os.path.exists(os.path.join(full, "__init__.py"))
-        is_module = entry.endswith(".py") and entry != "__init__.py"
-
-        if not is_package and not is_module:
-            continue
-
-        name = entry.replace(".py", "")
-        if name.startswith("_"):
-            continue
-
-        init_order = "-"
-        try:
-            if is_package:
-                mod_path = os.path.join(full, "__init__.py")
-            else:
-                mod_path = full
-            with open(mod_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            tree = ast.parse(content)
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    for item in node.body:
-                        if isinstance(item, ast.Assign):
-                            for target in item.targets:
-                                if isinstance(target, ast.Name) and target.id == "init_order":
-                                    if isinstance(item.value, ast.Constant):
-                                        init_order = str(item.value.value)
-        except Exception:
-            pass
-
-        enabled = name not in disabled
-        status = "enabled" if enabled else "disabled"
-        plugins.append((name, init_order, status))
-
-    if not plugins:
-        print("未找到插件")
+    if not deps:
+        print("pancake.xml 中没有配置插件")
         return
 
-    print(f"{'插件名':<25} {'init_order':<12} {'状态':<10}")
-    print("-" * 50)
-    for name, order, status in plugins:
-        print(f"{name:<25} {order:<12} {status:<10}")
+    print(f"{'插件名':<25} {'groupId':<20} {'状态':<10}")
+    print("-" * 58)
+    for dep in deps:
+        group_id = dep.findtext("groupId", "io.pancake")
+        artifact_id = dep.findtext("artifactId", "")
+        if not artifact_id:
+            continue
+        status = "disabled" if artifact_id in disabled else "enabled"
+        print(f"{artifact_id:<25} {group_id:<20} {status:<10}")
 
 
 def cmd_plugin_add(args):
-    """添加插件到 pancake.xml"""
+    """添加插件到 pancake.xml 的 <dependencies>"""
     name = args.name
-    xml_path = os.path.join(os.getcwd(), "pancake.xml")
+    xml_path = _get_xml_path()
 
     if not os.path.exists(xml_path):
         print("错误: 当前目录没有 pancake.xml")
         sys.exit(1)
 
-    try:
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
-    except ET.ParseError as e:
-        print(f"错误: XML 解析失败: {e}")
-        sys.exit(1)
+    tree, root = _parse_xml(xml_path)
 
-    plugins_elem = root.find("plugins")
-    if plugins_elem is None:
-        plugins_elem = ET.SubElement(root, "plugins")
-
-    for plugin in plugins_elem.findall("plugin"):
-        if plugin.get("name") == name:
+    # 检查是否已存在
+    for dep in _get_dependencies(root):
+        if dep.findtext("artifactId") == name:
             print(f"插件 '{name}' 已存在于 pancake.xml")
             return
 
-    ET.SubElement(plugins_elem, "plugin", name=name)
+    # 添加到 <dependencies>
+    deps_elem = _find_or_create_deps_elem(root)
+    dep_elem = ET.SubElement(deps_elem, "dependency")
+    ET.SubElement(dep_elem, "groupId").text = "io.pancake"
+    ET.SubElement(dep_elem, "artifactId").text = name
 
-    ET.indent(tree, space="    ")
-    tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
+    _save_xml(tree, xml_path)
     print(f"已添加插件 '{name}' 到 pancake.xml")
 
 
 def cmd_plugin_remove(args):
     """从 pancake.xml 移除指定插件"""
     name = args.name
-    xml_path = os.path.join(os.getcwd(), "pancake.xml")
+    xml_path = _get_xml_path()
 
     if not os.path.exists(xml_path):
         print("错误: 当前目录没有 pancake.xml")
         sys.exit(1)
 
-    try:
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
-    except ET.ParseError as e:
-        print(f"错误: XML 解析失败: {e}")
-        sys.exit(1)
-
+    tree, root = _parse_xml(xml_path)
     found = False
-
-    plugins_elem = root.find("plugins")
-    if plugins_elem is not None:
-        for plugin in plugins_elem.findall("plugin"):
-            if plugin.get("name") == name:
-                plugins_elem.remove(plugin)
-                found = True
-                break
-        if len(plugins_elem) == 0:
-            root.remove(plugins_elem)
 
     deps_elem = root.find("dependencies")
     if deps_elem is not None:
         for dep in deps_elem.findall("dependency"):
-            artifact = dep.find("artifactId")
-            if artifact is not None and artifact.text == name:
+            if dep.findtext("artifactId") == name:
                 deps_elem.remove(dep)
                 found = True
                 break
@@ -165,43 +139,30 @@ def cmd_plugin_remove(args):
         print(f"插件 '{name}' 不存在于 pancake.xml")
         return
 
-    ET.indent(tree, space="    ")
-    tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
+    _save_xml(tree, xml_path)
     print(f"已从 pancake.xml 移除插件 '{name}'")
 
 
 def cmd_plugin_clear(args):
     """清空 pancake.xml 中的所有插件"""
-    xml_path = os.path.join(os.getcwd(), "pancake.xml")
+    xml_path = _get_xml_path()
 
     if not os.path.exists(xml_path):
         print("错误: 当前目录没有 pancake.xml")
         sys.exit(1)
 
-    try:
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
-    except ET.ParseError as e:
-        print(f"错误: XML 解析失败: {e}")
-        sys.exit(1)
-
-    count = 0
-
-    plugins_elem = root.find("plugins")
-    if plugins_elem is not None:
-        count += len(plugins_elem.findall("plugin"))
-        root.remove(plugins_elem)
+    tree, root = _parse_xml(xml_path)
 
     deps_elem = root.find("dependencies")
-    if deps_elem is not None:
-        dep_count = len(deps_elem.findall("dependency"))
-        count += dep_count
-        root.remove(deps_elem)
+    if deps_elem is None:
+        print("pancake.xml 中没有插件")
+        return
 
+    count = len(deps_elem.findall("dependency"))
     if count == 0:
         print("pancake.xml 中没有插件")
         return
 
-    ET.indent(tree, space="    ")
-    tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
+    root.remove(deps_elem)
+    _save_xml(tree, xml_path)
     print(f"已清空所有插件 ({count} 个)")
