@@ -443,6 +443,95 @@ def cmd_plugin_add(args):
     print(f"已添加插件 '{name}' 到 pancake.xml")
 
 
+def cmd_plugin_remove(args):
+    """从 pancake.xml 移除指定插件"""
+    name = args.name
+    xml_path = os.path.join(os.getcwd(), "pancake.xml")
+
+    if not os.path.exists(xml_path):
+        print("错误: 当前目录没有 pancake.xml")
+        sys.exit(1)
+
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+    except ET.ParseError as e:
+        print(f"错误: XML 解析失败: {e}")
+        sys.exit(1)
+
+    found = False
+
+    # 从 <plugins> 节点移除
+    plugins_elem = root.find("plugins")
+    if plugins_elem is not None:
+        for plugin in plugins_elem.findall("plugin"):
+            if plugin.get("name") == name:
+                plugins_elem.remove(plugin)
+                found = True
+                break
+        if len(plugins_elem) == 0:
+            root.remove(plugins_elem)
+
+    # 从 <dependencies> 节点移除
+    deps_elem = root.find("dependencies")
+    if deps_elem is not None:
+        for dep in deps_elem.findall("dependency"):
+            artifact = dep.find("artifactId")
+            if artifact is not None and artifact.text == name:
+                deps_elem.remove(dep)
+                found = True
+                break
+        if len(deps_elem) == 0:
+            root.remove(deps_elem)
+
+    if not found:
+        print(f"插件 '{name}' 不存在于 pancake.xml")
+        return
+
+    ET.indent(tree, space="    ")
+    tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
+    print(f"已从 pancake.xml 移除插件 '{name}'")
+
+
+def cmd_plugin_clear(args):
+    """清空 pancake.xml 中的所有插件"""
+    xml_path = os.path.join(os.getcwd(), "pancake.xml")
+
+    if not os.path.exists(xml_path):
+        print("错误: 当前目录没有 pancake.xml")
+        sys.exit(1)
+
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+    except ET.ParseError as e:
+        print(f"错误: XML 解析失败: {e}")
+        sys.exit(1)
+
+    count = 0
+
+    # 清空 <plugins> 节点
+    plugins_elem = root.find("plugins")
+    if plugins_elem is not None:
+        count += len(plugins_elem.findall("plugin"))
+        root.remove(plugins_elem)
+
+    # 清空 <dependencies> 中的插件
+    deps_elem = root.find("dependencies")
+    if deps_elem is not None:
+        dep_count = len(deps_elem.findall("dependency"))
+        count += dep_count
+        root.remove(deps_elem)
+
+    if count == 0:
+        print("pancake.xml 中没有插件")
+        return
+
+    ET.indent(tree, space="    ")
+    tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
+    print(f"已清空所有插件 ({count} 个)")
+
+
 # ============================================================
 #  config — 配置管理
 # ============================================================
@@ -684,6 +773,9 @@ def main():
     plugin_sub.add_parser("list", help="列出可用插件")
     plugin_add = plugin_sub.add_parser("add", help="添加插件到 pancake.xml")
     plugin_add.add_argument("name", help="插件名称")
+    plugin_remove = plugin_sub.add_parser("remove", help="从 pancake.xml 移除插件")
+    plugin_remove.add_argument("name", help="插件名称")
+    plugin_sub.add_parser("clear", help="清空 pancake.xml 中的所有插件")
 
     # config
     config_parser = subparsers.add_parser("config", help="配置管理")
@@ -724,6 +816,10 @@ def main():
             cmd_plugin_list(args)
         elif args.plugin_cmd == "add":
             cmd_plugin_add(args)
+        elif args.plugin_cmd == "remove":
+            cmd_plugin_remove(args)
+        elif args.plugin_cmd == "clear":
+            cmd_plugin_clear(args)
         else:
             plugin_parser.print_help()
     elif args.command == "config":
