@@ -627,7 +627,7 @@ def cmd_audit(args):
 
     for root, dirs, files in os.walk(src_dir):
         # 跳过 __pycache__ 和 resource
-        dirs[:] = [d for d in dirs if d not in ("__pycache__,", "resource")]
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", "resource")]
         for fname in files:
             if not fname.endswith(".py"):
                 continue
