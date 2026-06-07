@@ -80,7 +80,7 @@ class SimpleBroker(MessageBroker):
         """关闭并清理"""
         self._handlers.clear()
 
-    def on_destroy(self):
+    async def on_destroy(self):
         """销毁时清理"""
         self._handlers.clear()
 

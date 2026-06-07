@@ -3,8 +3,10 @@ DoughFactory — Bean 工厂
 替代原有 oven 模块，统一管理所有 Bean
 """
 
+import asyncio
+import inspect
 import logging
-from pancake.dough import Dough, Scope
+from pancake.dough import Dough, Scope, _call_lifecycle
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,8 @@ logger = logging.getLogger(__name__)
 class DoughFactory:
     """Bean 工厂 — 管理 Bean 的注册、创建、生命周期
 
-    支持多个独立工厂实例
+    支持多个独立工厂实例。
+    生命周期方法支持同步和异步实现。
     """
 
     _factories: dict[str, "DoughFactory"] = {}
@@ -62,7 +65,7 @@ class DoughFactory:
         if cls._scope == Scope.LAZY:
             instance = cls()
             self._instances[name] = instance
-            instance.on_init()
+            # Lazy 的 on_init 需要在事件循环中调用
             return instance
 
         raise ValueError(f"Bean {name} 尚未创建，请先调用 create_all()")
@@ -73,26 +76,23 @@ class DoughFactory:
         使用 Kahn 算法：先计算入度，再依次取出入度为 0 的节点。
         LAZY Bean 不参与排序（延迟创建）。
         """
-        # 收集需要排序的 Bean 及其依赖
         deps: dict[str, list[str]] = {}
         for name, cls in self._classes.items():
             if cls._scope == Scope.LAZY:
                 continue
             deps[name] = getattr(cls, '_depends_on', [])
 
-        # 计算入度
         in_degree: dict[str, int] = {name: 0 for name in deps}
         for name, dep_list in deps.items():
             for dep in dep_list:
                 if dep in in_degree:
                     in_degree[name] += 1
 
-        # Kahn 算法
         queue = [name for name, degree in in_degree.items() if degree == 0]
         order: list[str] = []
 
         while queue:
-            queue.sort()  # 保证确定性顺序
+            queue.sort()
             node = queue.pop(0)
             order.append(node)
 
@@ -108,21 +108,19 @@ class DoughFactory:
 
         return order
 
-    def create_all(self):
-        """创建所有注册的 Bean（按依赖顺序）
+    # ---- 同步 API（兼容） ----
 
-        1. 处理 @Import：自动注册外部类
-        2. 拓扑排序确定创建顺序
-        3. 按顺序创建 Bean 并调用 on_init
+    def create_all(self):
+        """创建所有注册的 Bean（同步版本，仅适用于纯同步生命周期）
+
+        如果生命周期方法是 async 的，请使用 async_create_all()。
         """
-        # 处理 @Import — 自动注册外部类
         for name, cls in list(self._classes.items()):
             imports = getattr(cls, '_imports', [])
             for imported_cls in imports:
                 if imported_cls.__name__ not in self._classes:
                     self.register(imported_cls)
 
-        # 拓扑排序确定创建顺序
         order = self._resolve_dependency_order()
 
         for name in order:
@@ -131,42 +129,109 @@ class DoughFactory:
                 instance = cls()
                 self._instances[name] = instance
                 self._load_order.append(name)
-                instance.on_init()
+                # 同步调用 on_init（仅当方法不是 async 时）
+                method = getattr(instance, 'on_init', None)
+                if method and not inspect.iscoroutinefunction(method):
+                    method()
                 logger.debug(f"创建 Bean: {name}")
             except Exception as e:
                 logger.error(f"创建 Bean {name} 失败: {e}")
                 raise
 
-    def build_all(self):
-        """执行所有 Bean 的 build（兼容旧插件）"""
-        pass
-
     def startup_all(self):
-        """执行所有 Bean 的 on_start"""
+        """执行所有 Bean 的 on_start（同步版本）"""
         for name in self._load_order:
             instance = self._instances.get(name)
             if instance:
                 try:
-                    instance.on_start()
+                    method = getattr(instance, 'on_start', None)
+                    if method and not inspect.iscoroutinefunction(method):
+                        method()
                     logger.debug(f"启动 Bean: {name}")
                 except Exception as e:
                     logger.error(f"启动 Bean {name} 失败: {e}")
                     raise
 
     def shutdown_all(self):
-        """逆序执行 on_stop 和 on_destroy"""
+        """逆序执行 on_stop 和 on_destroy（同步版本）"""
         for name in reversed(self._load_order):
             instance = self._instances.get(name)
             if instance:
                 try:
-                    instance.on_stop()
-                    instance.on_destroy()
+                    on_stop = getattr(instance, 'on_stop', None)
+                    on_destroy = getattr(instance, 'on_destroy', None)
+                    if on_stop and not inspect.iscoroutinefunction(on_stop):
+                        on_stop()
+                    if on_destroy and not inspect.iscoroutinefunction(on_destroy):
+                        on_destroy()
                     logger.debug(f"关闭 Bean: {name}")
                 except Exception as e:
                     logger.error(f"关闭 Bean {name} 失败: {e}")
 
         self._instances.clear()
         self._load_order.clear()
+
+    # ---- 异步 API ----
+
+    async def async_create_all(self):
+        """创建所有注册的 Bean（异步版本，支持 async 生命周期）
+
+        1. 处理 @Import：自动注册外部类
+        2. 拓扑排序确定创建顺序
+        3. 按顺序创建 Bean 并调用 on_init
+        """
+        for name, cls in list(self._classes.items()):
+            imports = getattr(cls, '_imports', [])
+            for imported_cls in imports:
+                if imported_cls.__name__ not in self._classes:
+                    self.register(imported_cls)
+
+        order = self._resolve_dependency_order()
+
+        for name in order:
+            cls = self._classes[name]
+            try:
+                instance = cls()
+                self._instances[name] = instance
+                self._load_order.append(name)
+                await _call_lifecycle(instance, 'on_init')
+                logger.debug(f"创建 Bean: {name}")
+            except Exception as e:
+                logger.error(f"创建 Bean {name} 失败: {e}")
+                raise
+
+    async def async_startup_all(self):
+        """执行所有 Bean 的 on_start（异步版本）"""
+        for name in self._load_order:
+            instance = self._instances.get(name)
+            if instance:
+                try:
+                    await _call_lifecycle(instance, 'on_start')
+                    logger.debug(f"启动 Bean: {name}")
+                except Exception as e:
+                    logger.error(f"启动 Bean {name} 失败: {e}")
+                    raise
+
+    async def async_shutdown_all(self):
+        """逆序执行 on_stop 和 on_destroy（异步版本）"""
+        for name in reversed(self._load_order):
+            instance = self._instances.get(name)
+            if instance:
+                try:
+                    await _call_lifecycle(instance, 'on_stop')
+                    await _call_lifecycle(instance, 'on_destroy')
+                    logger.debug(f"关闭 Bean: {name}")
+                except Exception as e:
+                    logger.error(f"关闭 Bean {name} 失败: {e}")
+
+        self._instances.clear()
+        self._load_order.clear()
+
+    # ---- 查询 API ----
+
+    def build_all(self):
+        """执行所有 Bean 的 build（兼容旧插件）"""
+        pass
 
     def get_all_instances(self) -> dict[str, Dough]:
         """获取所有已创建的实例"""

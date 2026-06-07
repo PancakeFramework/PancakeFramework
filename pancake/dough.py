@@ -2,6 +2,8 @@
 Dough 系统 — Bean 基类、元类、作用域
 """
 
+import asyncio
+import inspect
 from abc import ABC, ABCMeta
 from enum import Enum
 
@@ -36,6 +38,10 @@ class Dough(ABC, metaclass=DoughMeta):
         4. [使用中]
         5. on_stop()      — 停止服务
         6. on_destroy()   — @PreDestroy, 销毁前
+
+    生命周期方法支持同步和异步实现：
+        - 子类可以覆盖为 async def 或普通 def
+        - DoughFactory 会自动检测并正确调用
     """
 
     _scope: Scope = Scope.SINGLETON
@@ -45,18 +51,32 @@ class Dough(ABC, metaclass=DoughMeta):
     def __init__(self):
         pass
 
-    def on_init(self):
+    async def on_init(self):
         """@PostConstruct — 属性注入后调用"""
         pass
 
-    def on_start(self):
+    async def on_start(self):
         """就绪 — 开始服务"""
         pass
 
-    def on_stop(self):
+    async def on_stop(self):
         """停止服务"""
         pass
 
-    def on_destroy(self):
+    async def on_destroy(self):
         """@PreDestroy — 销毁前调用"""
         pass
+
+
+async def _call_lifecycle(instance: object, method_name: str):
+    """调用生命周期方法，自动处理 sync/async
+
+    如果子类覆盖为同步方法，自动包装为 awaitable。
+    """
+    method = getattr(instance, method_name, None)
+    if method is None:
+        return
+    if inspect.iscoroutinefunction(method):
+        await method()
+    else:
+        method()

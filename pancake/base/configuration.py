@@ -13,7 +13,7 @@ class Configuration(Dough):
     3. @noMaker 装饰器可排除特定方法
     """
 
-    def on_init(self):
+    async def on_init(self):
         from pancake.factory.dough_factory import DoughFactory
 
         # 收集基类中定义的方法名，避免递归调用 on_init 等生命周期方法
@@ -28,6 +28,10 @@ class Configuration(Dough):
                 continue
             if hasattr(method, "_no_maker"):
                 continue
-            result = method()
+            # 支持 sync 和 async 的 maker 方法
+            if inspect.iscoroutinefunction(method):
+                result = await method()
+            else:
+                result = method()
             if result is not None and not isinstance(result, (str, int, float, bool)):
                 DoughFactory.get().register_instance(name, result)

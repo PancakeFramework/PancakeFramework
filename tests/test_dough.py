@@ -70,7 +70,8 @@ class TestDough:
         assert hasattr(Dough, "on_stop")
         assert hasattr(Dough, "on_destroy")
 
-    def test_dough_lifecycle_methods_are_noop(self):
+    @pytest.mark.asyncio
+    async def test_dough_lifecycle_methods_are_noop(self):
         """默认生命周期方法是空操作"""
         from pancake.dough import Dough
         class MyBean(Dough):
@@ -78,10 +79,10 @@ class TestDough:
                 pass
         bean = MyBean()
         # 不应抛出异常
-        bean.on_init()
-        bean.on_start()
-        bean.on_stop()
-        bean.on_destroy()
+        await bean.on_init()
+        await bean.on_start()
+        await bean.on_stop()
+        await bean.on_destroy()
 
     def test_dough_subclass_auto_registered(self):
         from pancake.dough import Dough

@@ -146,3 +146,39 @@ class TestNoMakerDecorator:
                 return "helper"
         assert hasattr(MyConfig.helper, "_no_maker")
         assert MyConfig.helper._no_maker is True
+
+
+class TestInjectDecorator:
+
+    def test_inject_sync_function(self):
+        """@inject 正确包装同步函数"""
+        @inject
+        def hello(name: str = "world"):
+            return f"hello {name}"
+        result = hello()
+        assert result == "hello world"
+
+    @pytest.mark.asyncio
+    async def test_inject_async_function(self):
+        """@inject 正确包装异步函数"""
+        @inject
+        async def hello(name: str = "world"):
+            return f"hello {name}"
+        result = await hello()
+        assert result == "hello world"
+
+    def test_inject_preserves_async_flag(self):
+        """@inject 保留 async 特性"""
+        import inspect
+        @inject
+        async def async_func():
+            pass
+        assert inspect.iscoroutinefunction(async_func)
+
+    def test_inject_preserves_sync_flag(self):
+        """@inject 保留 sync 特性"""
+        import inspect
+        @inject
+        def sync_func():
+            pass
+        assert not inspect.iscoroutinefunction(sync_func)

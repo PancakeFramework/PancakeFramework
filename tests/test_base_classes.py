@@ -17,21 +17,21 @@ class TestConfiguration:
     def test_configuration_is_dough(self):
         assert issubclass(Configuration, Dough)
 
-    def test_configuration_auto_registers_maker_methods(self):
+    @pytest.mark.asyncio
+    async def test_configuration_auto_registers_maker_methods(self):
         class AppConfig(Configuration):
             def __init__(self):
-                self.bean_created = False
+                pass
             def my_bean(self):
-                self.bean_created = True
                 return {"key": "value"}
 
         factory = DoughFactory.get()
         factory.register(AppConfig)
-        factory.create_all()
-        config = factory.resolve("AppConfig")
+        await factory.async_create_all()
         assert factory.resolve("my_bean") == {"key": "value"}
 
-    def test_configuration_skips_private_methods(self):
+    @pytest.mark.asyncio
+    async def test_configuration_skips_private_methods(self):
         class AppConfig(Configuration):
             def __init__(self):
                 pass
@@ -40,11 +40,12 @@ class TestConfiguration:
 
         factory = DoughFactory.get()
         factory.register(AppConfig)
-        factory.create_all()
+        await factory.async_create_all()
         with pytest.raises(ValueError):
             factory.resolve("_private")
 
-    def test_configuration_skips_no_maker(self):
+    @pytest.mark.asyncio
+    async def test_configuration_skips_no_maker(self):
         from pancake.decorators import noMaker
         class AppConfig(Configuration):
             def __init__(self):
@@ -55,11 +56,12 @@ class TestConfiguration:
 
         factory = DoughFactory.get()
         factory.register(AppConfig)
-        factory.create_all()
+        await factory.async_create_all()
         with pytest.raises(ValueError):
             factory.resolve("helper")
 
-    def test_configuration_skips_primitive_returns(self):
+    @pytest.mark.asyncio
+    async def test_configuration_skips_primitive_returns(self):
         class AppConfig(Configuration):
             def __init__(self):
                 pass
@@ -70,7 +72,7 @@ class TestConfiguration:
 
         factory = DoughFactory.get()
         factory.register(AppConfig)
-        factory.create_all()
+        await factory.async_create_all()
         with pytest.raises(ValueError):
             factory.resolve("get_name")
 

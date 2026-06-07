@@ -62,7 +62,8 @@ def load_dish():
 
 def build_all():
     """构建服务 — 创建所有 Bean 并启动"""
-    builder.build.build()
+    import asyncio
+    asyncio.run(builder.build.async_build())
 
 
 def _get_loop_methods() -> dict:
@@ -120,12 +121,13 @@ def run_loop_methods():
 
 def _shutdown_handler(signum, frame):
     """信号处理：优雅关闭"""
+    import asyncio
     sig_name = signal.Signals(signum).name
     logger.info(f"收到信号 {sig_name}，正在优雅关闭...")
 
     factory = DoughFactory.get()
     try:
-        factory.shutdown_all()
+        asyncio.run(factory.async_shutdown_all())
     except Exception as e:
         logger.error(f"关闭失败: {e}")
 

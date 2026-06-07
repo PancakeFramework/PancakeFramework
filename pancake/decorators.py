@@ -58,43 +58,61 @@ def noMaker(func):
 # ---- 注入装饰器 ----
 
 
+def _resolve_inject_params(func, kwargs):
+    """解析并注入参数（共用逻辑）"""
+    hints = {}
+    for pname, param in inspect.signature(func).parameters.items():
+        if param.annotation is not inspect.Parameter.empty:
+            ann = param.annotation
+            if isinstance(ann, str):
+                try:
+                    ann = eval(ann, getattr(func, '__globals__', {}))
+                except Exception:
+                    pass
+            hints[pname] = ann
+
+    for param_name, param_type in hints.items():
+        if param_name in kwargs:
+            continue
+        if param_name == "self" or param_name == "cls":
+            continue
+        if param_type and hasattr(param_type, '__name__'):
+            from pancake.factory.dough_factory import DoughFactory
+            try:
+                kwargs[param_name] = DoughFactory.get().resolve(param_type.__name__)
+            except ValueError:
+                pass
+    return kwargs
+
+
 def inject(func):
     """@inject — 自动注入依赖
 
-    从 DoughFactory 解析参数类型对应的 Bean
+    从 DoughFactory 解析参数类型对应的 Bean。
+    自动检测被装饰函数是否为 async，返回对应的 wrapper。
     """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        hints = {}
-        for pname, param in inspect.signature(func).parameters.items():
-            if param.annotation is not inspect.Parameter.empty:
-                ann = param.annotation
-                if isinstance(ann, str):
-                    try:
-                        ann = eval(ann, getattr(func, '__globals__', {}))
-                    except Exception:
-                        pass
-                hints[pname] = ann
+    if inspect.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            kwargs = _resolve_inject_params(func, kwargs)
+            return await func(*args, **kwargs)
 
-        for param_name, param_type in hints.items():
-            if param_name in kwargs:
-                continue
-            if param_name == "self" or param_name == "cls":
-                continue
-            if param_type and hasattr(param_type, '__name__'):
-                from pancake.factory.dough_factory import DoughFactory
-                try:
-                    kwargs[param_name] = DoughFactory.get().resolve(param_type.__name__)
-                except ValueError:
-                    pass
+        async_wrapper.__annotations__ = {}
+        if hasattr(async_wrapper, '__wrapped__'):
+            delattr(async_wrapper, '__wrapped__')
+        async_wrapper.__signature__ = inspect.Signature()
+        return async_wrapper
+    else:
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            kwargs = _resolve_inject_params(func, kwargs)
+            return func(*args, **kwargs)
 
-        return func(*args, **kwargs)
-
-    wrapper.__annotations__ = {}
-    if hasattr(wrapper, '__wrapped__'):
-        delattr(wrapper, '__wrapped__')
-    wrapper.__signature__ = inspect.Signature()
-    return wrapper
+        sync_wrapper.__annotations__ = {}
+        if hasattr(sync_wrapper, '__wrapped__'):
+            delattr(sync_wrapper, '__wrapped__')
+        sync_wrapper.__signature__ = inspect.Signature()
+        return sync_wrapper
 
 
 # ---- 配置装饰器 ----
