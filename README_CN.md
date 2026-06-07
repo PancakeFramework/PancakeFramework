@@ -16,7 +16,7 @@
 - **AI 模块** — 统一 LLM 客户端 (OpenAI/DeepSeek/Gemini/Ollama)、记忆、RAG
 - **Redis 缓存** — `@cached` 装饰器，防穿透/雪崩/击穿保护
 - **消息队列** — 事件驱动，支持 SimpleBroker 和 RedisBroker
-- **插件系统** — 自动发现加载，init_order 控制顺序，支持外部插件目录
+- **插件系统** — XML 声明式管理，自动 pip 安装，`pancake plugin` 命令行
 
 ## 快速开始
 
@@ -124,8 +124,8 @@ pancake/
 ├── base/              # Configuration、Function、Service、Struct
 ├── factory/           # DoughFactory — Bean 生命周期管理
 ├── builder/           # 构建流水线、插件加载、源码加载
+├── cli/               # CLI 命令（create/run/plugin/config）
 ├── ovenware/          # Broker 消息队列
-├── oven/              # 旧注册表（向后兼容外部插件）
 ├── resource/          # YAML/JSON/XML 配置加载器
 └── tool/              # 工具类
 ```
@@ -151,6 +151,9 @@ pancake/
 - [x] 懒加载 — `@Lazy` 延迟 Bean 创建
 - [x] 依赖解析 — `@DependsOn` 拓扑排序、`@Import` 自动注册
 - [x] 异步生命周期 — 所有生命周期方法支持 `async def`
+- [x] 零 import — 所有装饰器/服务自动注入 builtins
+- [x] 循环依赖检测 — 拓扑排序检测并报告循环
+- [x] 集成测试 — 42 个测试覆盖多层依赖、菱形依赖、边界场景
 - [ ] 自动配置 — 自动检测依赖并配置默认值
 - [ ] Profiles — 环境特定配置（dev / test / prod）
 - [ ] 条件 Bean — `@ConditionalOnProperty`、`@ConditionalOnClass`
@@ -211,8 +214,19 @@ pancake/
 - [ ] 分布式追踪 — OpenTelemetry 追踪上下文传播
 - [ ] 日志级别 API — 运行时通过 REST 端点修改日志级别
 
+### 插件系统
+
+- [x] XML 声明式插件 — pancake.xml `<dependencies>` 管理
+- [x] 自动 pip 安装 — import 优先，ImportError 时自动 pip install
+- [x] CLI 管理 — `pancake plugin list/add/remove/clear`
+- [x] CLI 模块化 — 拆分为 cli/ 包（project/config/plugin/misc）
+- [ ] 插件市场 — 集中注册表发现插件
+- [ ] 插件版本约束 — `<version>` 标签支持 semver 匹配
+- [ ] 插件钩子 — `on_install`、`on_uninstall`、`on_upgrade` 生命周期
+
 ### DevOps / CLI
 
+- [x] CLI 模块化 — 拆分为 cli/ 包（project/config/plugin/misc）
 - [ ] 项目脚手架 — `pancake create` 模板（API / 全栈 / 微服务）
 - [ ] 代码生成 — 从表结构自动生成 Mapper/Controller
 - [ ] DevTools — 代码变更自动重启（watchdog）

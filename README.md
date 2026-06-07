@@ -24,7 +24,7 @@
 - **AI Module** — Unified LLM client (OpenAI/DeepSeek/Gemini/Ollama), memory, RAG
 - **Redis Cache** — `@cached` with anti-penetration/avalanche/breakdown protection
 - **Message Queue** — Event-driven with SimpleBroker and RedisBroker
-- **Plugin System** — Auto-discovery, init-order control, external plugin dirs
+- **Plugin System** — XML-based plugin management, auto pip install, `pancake plugin` CLI
 
 ## Quick Start
 
@@ -130,8 +130,8 @@ pancake/
 ├── base/              # Configuration, Function, Service, Struct
 ├── factory/           # DoughFactory — Bean lifecycle management
 ├── builder/           # Build pipeline, plugin loader, source loader
+├── cli/               # CLI commands (create/run/plugin/config)
 ├── ovenware/          # Broker (message queue)
-├── oven/              # Legacy registry (backward compat for plugins)
 ├── resource/          # YAML/JSON/XML config loaders
 └── tool/              # Utilities
 ```
@@ -157,6 +157,9 @@ pancake/
 - [x] Lazy initialization — `@Lazy` for deferred bean creation
 - [x] Dependency resolution — `@DependsOn` topological sort, `@Import` auto-register
 - [x] Async lifecycle — all lifecycle methods support `async def`
+- [x] Zero import — all decorators/services auto-injected into builtins
+- [x] Circular dependency detection — topological sort with cycle reporting
+- [x] Integration tests — 42 tests covering multi-layer deps, diamond, edge cases
 - [ ] Auto-configuration — auto-detect dependencies and configure defaults
 - [ ] Profiles — environment-specific config (dev / test / prod)
 - [ ] Conditional beans — `@ConditionalOnProperty`, `@ConditionalOnClass`
@@ -217,8 +220,19 @@ pancake/
 - [ ] Distributed tracing — OpenTelemetry trace context propagation
 - [ ] Log levels API — runtime log level change via REST endpoint
 
+### Plugin System
+
+- [x] XML-based plugin declaration — `<dependencies>` in pancake.xml
+- [x] Auto pip install — import-first, pip-fallback on ImportError
+- [x] CLI management — `pancake plugin list/add/remove/clear`
+- [x] CLI modularization — split monolithic cli.py into cli/ package
+- [ ] Plugin marketplace — central registry for discovering plugins
+- [ ] Plugin version constraints — `<version>` tag with semver matching
+- [ ] Plugin hooks — `on_install`, `on_uninstall`, `on_upgrade` lifecycle
+
 ### DevOps / CLI
 
+- [x] CLI modularization — split into cli/ package (project/config/plugin/misc)
 - [ ] Project scaffolding — `pancake create` with templates (API / Fullstack / Microservice)
 - [ ] Code generation — auto-generate Mapper/Controller from table schema
 - [ ] DevTools — auto-restart on code change (watchdog)
