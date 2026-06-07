@@ -53,3 +53,17 @@ def clear_registry():
     """清空所有注册表（用于测试）"""
     _class_registry.clear()
     _decorator_registry.clear()
+
+
+# ---- 注册到 muffin_water，供 Dough.on_init 零 import 注入 ----
+
+def _register_to_muffin():
+    from pancake.oven.muffin import muffin_water
+    muffin_water["register_class"] = register_class
+    muffin_water["get_class"] = get_class
+    muffin_water["get_all_classes"] = get_all_classes
+    muffin_water["register_decorator"] = register_decorator
+    muffin_water["get_decorator"] = get_decorator
+    muffin_water["get_all_decorators"] = get_all_decorators
+
+_register_to_muffin()
