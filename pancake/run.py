@@ -61,9 +61,32 @@ def load_dish():
 
 
 def build_all():
-    """构建服务 — 创建所有 Bean 并启动"""
+    """构建服务 — 创建所有 Bean 并启动
+
+    使用 get_event_loop().run_until_complete() 避免创建多个事件循环，
+    确保 Bean 的 async 资源（如数据库连接）在后续 loop_method 中可用。
+    """
     import asyncio
-    asyncio.run(builder.build.async_build())
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # 已有运行中的事件循环（如 Jupyter），创建 task
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            pool.submit(asyncio.run, builder.build.async_build()).result()
+    else:
+        # 正常情况：使用现有循环或创建新的
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(builder.build.async_build())
+        finally:
+            # 不关闭循环，留给后续 uvicorn 使用
+            pass
 
 
 def _get_loop_methods() -> dict:
@@ -127,7 +150,14 @@ def _shutdown_handler(signum, frame):
 
     factory = DoughFactory.get()
     try:
-        asyncio.run(factory.async_shutdown_all())
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                loop.create_task(factory.async_shutdown_all())
+            else:
+                loop.run_until_complete(factory.async_shutdown_all())
+        except RuntimeError:
+            asyncio.run(factory.async_shutdown_all())
     except Exception as e:
         logger.error(f"关闭失败: {e}")
 
