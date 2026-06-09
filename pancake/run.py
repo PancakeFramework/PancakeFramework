@@ -106,8 +106,9 @@ def _get_loop_methods() -> dict:
 def run_loop_methods():
     """运行所有 loop_method（并发执行，避免互相阻塞）
 
-    web 服务器始终在主线程运行（保持进程存活），
+    标记了 _run_on_main_thread = True 的实例在主线程运行（保持进程存活），
     其余 loop_method 在守护线程中运行。
+    默认第一个 loop_method 在主线程运行。
     """
     import threading
 
@@ -121,14 +122,14 @@ def run_loop_methods():
         method()
         return
 
-    # 多个 loop_method：web 在主线程，其余在守护线程
     items = list(loop_methods.items())
 
-    # 找到 web 相关的 loop_method 放主线程
-    # 优先选择具体实现类（如 WebServer），跳过插件 Main 类
+    # 找标记了 _run_on_main_thread 的实例，放主线程
     main_idx = 0
+    factory = DoughFactory.get()
     for i, (name, method) in enumerate(items):
-        if "web" in name.lower() and "main" not in name.lower():
+        instance = factory.get_instance(name)
+        if instance and getattr(instance, '_run_on_main_thread', False):
             main_idx = i
             break
 
