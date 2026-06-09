@@ -20,6 +20,7 @@ def cmd_init(args):
         os.path.join("src", "resource", "yaml"),
         os.path.join("src", "resource", "json"),
         os.path.join("src", "mapper"),
+        os.path.join("src", "templates"),
     ]
     for d in dirs:
         os.makedirs(d, exist_ok=True)
@@ -30,15 +31,9 @@ def cmd_init(args):
     with open("pancake.xml", "w", encoding="utf-8") as f:
         f.write(f'''<?xml version="1.0" encoding="UTF-8"?>
 <pancake>
-    <groupId>com.example</groupId>
-    <artifactId>{name}</artifactId>
-    <version>1.0.0</version>
-
-    <global>
+    <config>
         <pancake.title>{name}</pancake.title>
-        <pancake.version>1.0.0</pancake.version>
-    </global>
-
+    </config>
     <dependencies>
         <dependency>
             <groupId>io.pancake</groupId>
@@ -56,7 +51,6 @@ def cmd_init(args):
         f.write(f'''# 自定义配置（覆盖 pancake.xml 中的值）
 # pancake:
 #   title: {name}
-#   version: 1.0.0
 ''')
 
     print("项目初始化完成!")
@@ -78,6 +72,7 @@ def cmd_create(args):
         os.path.join(project_dir, "src", "resource", "yaml"),
         os.path.join(project_dir, "src", "resource", "json"),
         os.path.join(project_dir, "src", "mapper"),
+        os.path.join(project_dir, "src", "templates"),
     ]
     for d in dirs:
         os.makedirs(d)
@@ -88,15 +83,9 @@ def cmd_create(args):
     with open(os.path.join(project_dir, "pancake.xml"), "w", encoding="utf-8") as f:
         f.write(f'''<?xml version="1.0" encoding="UTF-8"?>
 <pancake>
-    <groupId>com.example</groupId>
-    <artifactId>{name}</artifactId>
-    <version>1.0.0</version>
-
-    <global>
+    <config>
         <pancake.title>{name}</pancake.title>
-        <pancake.version>1.0.0</pancake.version>
-    </global>
-
+    </config>
     <dependencies>
         <dependency>
             <groupId>io.pancake</groupId>
@@ -113,7 +102,6 @@ def cmd_create(args):
     with open(os.path.join(project_dir, "src", "resource", "yaml", "service.yaml"), "w", encoding="utf-8") as f:
         f.write(f'''pancake:
   title: {name}
-  version: 1.0.0
 ''')
 
     with open(os.path.join(project_dir, "pyproject.toml"), "w", encoding="utf-8") as f:
@@ -166,6 +154,10 @@ def cmd_check(args):
             yaml_files = [f for f in os.listdir(yaml_dir) if f.endswith(('.yaml', '.yml'))]
             if not yaml_files:
                 warnings.append(f"{yaml_dir} 中没有 YAML 配置文件")
+
+        template_dir = os.path.join("src", "templates")
+        if not os.path.isdir(template_dir):
+            warnings.append(f"缺少 {template_dir} 目录（模板渲染需要）")
 
     try:
         import pancake  # noqa: F401

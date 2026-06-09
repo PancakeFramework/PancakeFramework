@@ -55,7 +55,7 @@ def cmd_config_show(args):
     if os.path.exists(xml_path):
         try:
             tree = ET.parse(xml_path)
-            global_elem = tree.getroot().find("global") or tree.getroot().find("config")
+            global_elem = tree.getroot().find("config") or tree.getroot().find("global")
             if global_elem is not None:
                 for child in global_elem:
                     if child.tag != "property" and child.text and child.text.strip():
