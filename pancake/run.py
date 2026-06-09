@@ -106,11 +106,11 @@ def _get_loop_methods() -> dict:
 def run_loop_methods():
     """运行所有 loop_method（并发执行，避免互相阻塞）
 
-    标记了 _run_on_main_thread = True 的实例在主线程运行（保持进程存活），
-    其余 loop_method 在守护线程中运行。
-    默认第一个 loop_method 在主线程运行。
+    通过配置 framework.main_loop 指定主线程运行的 loop_method 名称。
+    未配置时默认第一个 loop_method 在主线程运行。
     """
     import threading
+    from pancake import settings
 
     loop_methods = _get_loop_methods()
     if not loop_methods:
@@ -124,14 +124,14 @@ def run_loop_methods():
 
     items = list(loop_methods.items())
 
-    # 找标记了 _run_on_main_thread 的实例，放主线程
+    # 通过配置指定主线程 loop_method
+    main_loop_name = settings.get("framework.main_loop")
     main_idx = 0
-    factory = DoughFactory.get()
-    for i, (name, method) in enumerate(items):
-        instance = factory.get_instance(name)
-        if instance and getattr(instance, '_run_on_main_thread', False):
-            main_idx = i
-            break
+    if main_loop_name:
+        for i, (name, method) in enumerate(items):
+            if name == main_loop_name:
+                main_idx = i
+                break
 
     for i, (name, method) in enumerate(items):
         if i == main_idx:
