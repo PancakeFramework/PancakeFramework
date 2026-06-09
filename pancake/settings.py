@@ -44,6 +44,24 @@ _DEFAULTS = {
     # AI 配置
     "ai.timeout": 60,
     "ai.retry": 3,
+
+    # Web 配置（pancake-web 插件）
+    "web.host": "127.0.0.1",
+    "web.port": 8080,
+    "web.debug": False,
+    "web.static": os.path.join("src", "static"),
+    "web.templates": os.path.join("src", "templates"),
+    "web.cors.allow_origins": "*",
+    "web.cors.allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
+    "web.cors.allow_headers": "*",
+    "web.cors.max_age": 3600,
+    "web.session.secret_key": None,
+    "web.session.max_age": 86400,
+    "web.session.secure": False,
+    "web.request.timeout": 30,
+    "web.request.max_body_size": 1048576,
+    "web.server.max_connections": 100,
+    "web.server.backlog": 128,
 }
 
 # 用户配置（从 XML/YAML 加载）
