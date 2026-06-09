@@ -105,7 +105,7 @@ def _parse_and_exec(filepath, catch_all=False):
         exec(code, _shared_globals)
         return True
     except NameError:
-        return not catch_all  # catch_all=True 时视为成功，False 时需要重试
+        return catch_all  # catch_all=False → 需要重试；catch_all=True → 放弃
     except Exception:
         import traceback
         traceback.print_exc()
