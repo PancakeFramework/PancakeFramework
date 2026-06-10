@@ -25,7 +25,7 @@ def cmd_init(args):
         os.makedirs(d, exist_ok=True)
 
     with open("main.py", "w", encoding="utf-8") as f:
-        f.write('import pancake\n\npancake.run()\n')
+        f.write('import pancake\n\nif __name__ == "__main__":\n    pancake.run()\n')
 
     with open("pancake.xml", "w", encoding="utf-8") as f:
         f.write(f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -73,7 +73,7 @@ def cmd_create(args):
         os.makedirs(d)
 
     with open(os.path.join(project_dir, "main.py"), "w", encoding="utf-8") as f:
-        f.write('import pancake\n\npancake.run()\n')
+        f.write('import pancake\n\nif __name__ == "__main__":\n    pancake.run()\n')
 
     with open(os.path.join(project_dir, "pancake.xml"), "w", encoding="utf-8") as f:
         f.write(f'''<?xml version="1.0" encoding="UTF-8"?>
@@ -159,6 +159,8 @@ def cmd_check(args):
             content = f.read()
             if "import pancake" not in content:
                 warnings.append("main.py 中未找到 'import pancake'")
+            if "pancake.run()" in content and '__name__' not in content:
+                warnings.append("main.py 中 pancake.run() 缺少 if __name__ == \"__main__\": 保护")
 
     if not os.path.exists("pancake.xml"):
         warnings.append("缺少 pancake.xml（可选，用于插件配置）")
