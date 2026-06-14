@@ -28,9 +28,10 @@ def _flatten_dict(d: dict, prefix: str, result: dict):
 
 def _get_paths_from_xml():
     """从 pancake.xml 读取路径配置"""
+    from pancake.settings import _DEFAULTS
     defaults = {
-        "yaml_dir": os.path.join("src", "resource", "yaml"),
-        "json_dir": os.path.join("src", "resource", "json"),
+        "yaml_dir": _DEFAULTS.get("paths.yaml_dir", "src/resource/yaml"),
+        "json_dir": _DEFAULTS.get("paths.json_dir", "src/resource/json"),
     }
     xml_path = "pancake.xml"
     if not os.path.exists(xml_path):

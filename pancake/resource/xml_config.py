@@ -12,12 +12,11 @@ logger = logging.getLogger(__name__)
 
 XML_FILE_PRIMARY = "pancake.xml"
 
-# 路径默认配置（XML 不存在时也生效）
-_PATH_DEFAULTS = {
-    "paths.src_dir": "src",
-    "paths.yaml_dir": os.path.join("src", "resource", "yaml"),
-    "paths.json_dir": os.path.join("src", "resource", "json"),
-}
+
+def _get_path_defaults() -> dict:
+    """从集中配置读取路径默认值"""
+    from pancake.settings import _DEFAULTS
+    return {k: v for k, v in _DEFAULTS.items() if k.startswith("paths.")}
 
 
 def _resolve_env_vars(value: str) -> str:
@@ -129,11 +128,11 @@ def load_xml(xml_path: str = None) -> dict:
 
     if xml_path is None:
         logger.info("No pancake.xml found, using directory scanning mode")
-        return {"plugins": [], "dependencies": [], "config": dict(_PATH_DEFAULTS)}
+        return {"plugins": [], "dependencies": [], "config": dict(_get_path_defaults())}
 
     if not os.path.exists(xml_path):
         logger.warning(f"XML config not found: {xml_path}")
-        return {"plugins": [], "dependencies": [], "config": dict(_PATH_DEFAULTS)}
+        return {"plugins": [], "dependencies": [], "config": dict(_get_path_defaults())}
 
     logger.info(f"Loading XML config: {xml_path}")
 
@@ -142,12 +141,12 @@ def load_xml(xml_path: str = None) -> dict:
         root = tree.getroot()
     except ET.ParseError as e:
         logger.error(f"XML parse error: {e}")
-        return {"plugins": [], "dependencies": [], "config": dict(_PATH_DEFAULTS)}
+        return {"plugins": [], "dependencies": [], "config": dict(_get_path_defaults())}
 
     result = {
         "plugins": [],
         "dependencies": [],
-        "config": dict(_PATH_DEFAULTS),
+        "config": dict(_get_path_defaults()),
         "groupId": root.findtext("groupId", ""),
         "artifactId": root.findtext("artifactId", ""),
         "version": root.findtext("version", ""),

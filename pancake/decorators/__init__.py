@@ -8,6 +8,7 @@ from pancake.decorators.bean import maker, maker_name, no_maker
 from pancake.decorators.inject import inject, inject_name, _InjectName
 from pancake.decorators.config import config, depends_on, import_class
 from pancake.decorators.convert import service, configuration, function, struct
+from pancake.decorators.log import log
 
 __all__ = [
     # 作用域
@@ -20,4 +21,6 @@ __all__ = [
     "config", "depends_on", "import_class",
     # 类型转换
     "service", "configuration", "function", "struct",
+    # 日志
+    "log",
 ]

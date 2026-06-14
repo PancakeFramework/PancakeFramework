@@ -4,6 +4,8 @@ import os
 import platform
 import logging
 
+from pancake.exceptions import DependencyError
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,8 +40,7 @@ def install_poetry():
         try:
             subprocess.run([sys.executable, "-m", "pip", "install", "poetry"], check=True)
         except subprocess.CalledProcessError as e:
-            print(f"安装失败: {e}")
-            sys.exit(1)
+            raise DependencyError(f"Poetry 安装失败: {e}") from e
 
 
 def setup_current_directory(dependencies: list):
@@ -86,13 +87,14 @@ def check_environment():
         if os.getenv("PANCAKE_AUTO_INSTALL", "").lower() in ("1", "true", "yes"):
             auto_install = True
         elif not sys.stdin.isatty():
-            logger.error("Missing required libraries and running in non-interactive mode. Set PANCAKE_AUTO_INSTALL=1 to auto-install.")
-            sys.exit(1)
+            raise DependencyError(
+                "缺少必要的库，且运行在非交互模式。请设置 PANCAKE_AUTO_INSTALL=1 自动安装，或手动运行: pip install python-dotenv pyyaml"
+            )
         else:
             auto_install = input("缺少必要的库，是否自动安装？ (y/n)").lower().startswith("y")
 
         if not auto_install:
-            sys.exit(1)
+            raise DependencyError("缺少必要的库: python-dotenv, pyyaml。请运行: pip install python-dotenv pyyaml")
 
         # 1. 检查 Poetry
         if not check_poetry_installed():
@@ -107,5 +109,4 @@ def check_environment():
         setup_current_directory(REQUIRED_LIBRARIES)
 
         print("环境配置完成！", f"虚拟环境位置: {os.path.join(os.getcwd(), '.venv')}")
-        print("请重新启动项目 例如: poetry run python main.py")
-        sys.exit(1)
+        raise DependencyError("环境配置完成，请重新启动项目: poetry run python main.py")

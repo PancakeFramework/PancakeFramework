@@ -14,6 +14,12 @@ def _check_dough_type(cls, target_type):
         )
 
 
+_SKIP_ATTRS = frozenset({
+    '__module__', '__qualname__', '__doc__', '__annotations__',
+    '__dict__', '__weakref__', '__slots__',
+})
+
+
 def _convert_class(cls, *bases, dough_type=None):
     """将普通类转换为继承指定基类的 Dough 子类"""
     from pancake.dough import DoughMeta
@@ -28,11 +34,21 @@ def _convert_class(cls, *bases, dough_type=None):
             return cls
 
     if not isinstance(cls, DoughMeta):
+        # 自动保留原始类上由装饰器设置的属性（跳过 dunder 和方法）
+        preserved = {}
+        for attr, val in cls.__dict__.items():
+            if attr in _SKIP_ATTRS or attr.startswith('__'):
+                continue
+            if callable(val) and not isinstance(val, type):
+                continue
+            preserved[attr] = val
+
         new_cls = type(cls.__name__, (cls,) + bases, {
             '__module__': cls.__module__,
             '__qualname__': cls.__qualname__,
             '__doc__': cls.__doc__,
             '__annotations__': dict(cls.__annotations__),
+            **preserved,
         })
     else:
         cls.__bases__ = bases + cls.__bases__

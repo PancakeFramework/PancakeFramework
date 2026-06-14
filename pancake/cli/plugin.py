@@ -11,6 +11,8 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
+from pancake.exceptions import ProjectError
+
 
 def _get_xml_path():
     """获取 pancake.xml 路径"""
@@ -23,8 +25,7 @@ def _parse_xml(xml_path):
         tree = ET.parse(xml_path)
         return tree, tree.getroot()
     except ET.ParseError as e:
-        print(f"错误: XML 解析失败: {e}")
-        sys.exit(1)
+        raise ProjectError(f"XML 解析失败: {e}") from e
 
 
 def _get_dependencies(root):
@@ -64,8 +65,7 @@ def cmd_plugin_list(args):
     """列出 pancake.xml 中配置的插件"""
     xml_path = _get_xml_path()
     if not os.path.exists(xml_path):
-        print("错误: 当前目录没有 pancake.xml")
-        sys.exit(1)
+        raise ProjectError("当前目录没有 pancake.xml")
 
     tree, root = _parse_xml(xml_path)
     disabled = _get_disabled_plugins(root)
@@ -92,8 +92,7 @@ def cmd_plugin_add(args):
     xml_path = _get_xml_path()
 
     if not os.path.exists(xml_path):
-        print("错误: 当前目录没有 pancake.xml")
-        sys.exit(1)
+        raise ProjectError("当前目录没有 pancake.xml")
 
     tree, root = _parse_xml(xml_path)
 
@@ -119,8 +118,7 @@ def cmd_plugin_remove(args):
     xml_path = _get_xml_path()
 
     if not os.path.exists(xml_path):
-        print("错误: 当前目录没有 pancake.xml")
-        sys.exit(1)
+        raise ProjectError("当前目录没有 pancake.xml")
 
     tree, root = _parse_xml(xml_path)
     found = False
@@ -148,8 +146,7 @@ def cmd_plugin_clear(args):
     xml_path = _get_xml_path()
 
     if not os.path.exists(xml_path):
-        print("错误: 当前目录没有 pancake.xml")
-        sys.exit(1)
+        raise ProjectError("当前目录没有 pancake.xml")
 
     tree, root = _parse_xml(xml_path)
 

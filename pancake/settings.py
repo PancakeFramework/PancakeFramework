@@ -9,8 +9,15 @@ Pancake 配置管理模块
 
 import os
 
-# 默认配置
-_DEFAULTS = {}
+# 默认配置（集中管理，避免散落各处硬编码）
+_DEFAULTS = {
+    "paths.yaml_dir": "src/resource/yaml",
+    "paths.json_dir": "src/resource/json",
+    "paths.mapper_dir": "src/mapper",
+    "paths.src_dir": "src",
+    "paths.template_dir": "src/templates",
+    "paths.crash_dir": "crash",
+}
 
 # 用户配置（从 XML/YAML 加载）
 _user_config: dict = {}

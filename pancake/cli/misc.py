@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 from .utils import get_version
+from pancake.exceptions import DependencyError
 
 
 def cmd_version(args):
@@ -31,9 +32,7 @@ def cmd_update(args):
         if result.stdout:
             print(result.stdout)
     else:
-        print("更新失败:")
-        print(result.stderr)
-        sys.exit(1)
+        raise DependencyError(f"更新失败: {result.stderr}")
 
 
 _PKG_TO_MODULE = {
@@ -75,6 +74,4 @@ def cmd_install(args):
     if result.returncode == 0:
         print("安装成功!")
     else:
-        print("安装失败:")
-        print(result.stderr)
-        sys.exit(1)
+        raise DependencyError(f"安装失败: {result.stderr}")

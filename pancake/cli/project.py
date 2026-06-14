@@ -4,14 +4,15 @@ import os
 import subprocess
 import sys
 
+from pancake.exceptions import ProjectError
+
 
 def cmd_init(args):
     """在当前目录初始化项目"""
     cwd = os.getcwd()
 
     if os.path.exists("main.py") or os.path.exists("pancake.xml"):
-        print("错误: 当前目录已有 Pancake 项目文件（main.py 或 pancake.xml）")
-        sys.exit(1)
+        raise ProjectError("当前目录已有 Pancake 项目文件（main.py 或 pancake.xml）")
 
     name = os.path.basename(cwd)
     print(f"在当前目录初始化项目: {name}")
@@ -58,8 +59,7 @@ def cmd_create(args):
     project_dir = os.path.join(os.getcwd(), name)
 
     if os.path.exists(project_dir):
-        print(f"错误: 目录 '{name}' 已存在")
-        sys.exit(1)
+        raise ProjectError(f"目录 '{name}' 已存在")
 
     print(f"创建项目: {name}")
 
@@ -208,8 +208,7 @@ def cmd_check(args):
 def cmd_run(args):
     """运行项目"""
     if not os.path.exists("main.py"):
-        print("错误: 当前目录没有 main.py，请在项目根目录运行")
-        sys.exit(1)
+        raise ProjectError("当前目录没有 main.py，请在项目根目录运行")
 
     print("启动 Pancake 项目...")
     import pancake
@@ -219,8 +218,7 @@ def cmd_run(args):
 def cmd_build(args):
     """打包项目为 wheel"""
     if not os.path.exists("pyproject.toml"):
-        print("错误: 当前目录没有 pyproject.toml")
-        sys.exit(1)
+        raise ProjectError("当前目录没有 pyproject.toml")
 
     print("打包项目...")
     result = subprocess.run(
@@ -231,6 +229,4 @@ def cmd_build(args):
         print("打包成功!")
         print(result.stdout)
     else:
-        print("打包失败:")
-        print(result.stderr)
-        sys.exit(1)
+        raise ProjectError(f"打包失败: {result.stderr}")

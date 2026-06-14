@@ -18,6 +18,6 @@ def json_init():
         try:
             with open(filepath, 'r', encoding="utf-8") as f:
                 data[filename.split('.')[0]] = loads(f.read())
-        except (OSError, Exception) as e:
+        except Exception as e:
             logger.warning(f"加载 JSON 配置失败 {filename}: {e}")
     return data

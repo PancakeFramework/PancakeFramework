@@ -124,6 +124,30 @@ def format_date(date_str: str) -> str:
 result = format_date("2024-01-15")  # "15/01/2024"
 ```
 
+## 日志 — @log
+
+`@log` 装饰器自动为类注入 `logger` 实例（类似 Lombok 的 `@Slf4j`），省去每处手写 `logging.getLogger(...)`。
+
+```python
+@log
+@service
+class UserService:
+    async def on_init(self):
+        self.logger.info("UserService 启动")
+
+    async def find_user(self, user_id: int):
+        self.logger.debug(f"查询用户: {user_id}")
+        try:
+            user = await self._query(user_id)
+            self.logger.info(f"查询成功: {user_id}")
+            return user
+        except Exception as e:
+            self.logger.error(f"查询失败: {e}", exc_info=True)
+            raise
+```
+
+logger 名称格式为 `{模块名}.{类名}`，如 `src.service.user.UserService`。所有实例共享同一个 logger。
+
 ---
 
 [← 上一节](01-quickstart.md) | [下一节 →](03-ioc.md)

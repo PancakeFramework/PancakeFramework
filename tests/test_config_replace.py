@@ -72,17 +72,17 @@ def test_defaults_preserved():
     """replace 不影响通过 init 设置的配置"""
     settings.reset()
 
-    # 模拟 XML 加载的默认配置
-    settings.init({"paths.src_dir": "src", "pancake.title": "Test App"})
+    # 模拟 XML 加载的配置（paths.src_dir 现在是 _DEFAULTS 内置值，始终可用）
+    settings.init({"pancake.title": "Test App"})
     settings.init({"custom_key": "value"})
     settings.replace({"new_key": "new"})
 
-    # replace 清除了 init 的配置
+    # replace 清除了用户配置，但 _DEFAULTS 中的值仍然可用
     assert settings.get("custom_key") is None
-    assert settings.get("paths.src_dir") is None
+    assert settings.get("paths.src_dir") == "src"  # _DEFAULTS 内置默认值
     assert settings.get("new_key") == "new"
 
-    print("[OK] replace 清除所有用户配置")
+    print("[OK] replace 清除用户配置，保留内置默认值")
 
 
 if __name__ == "__main__":

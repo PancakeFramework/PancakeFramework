@@ -124,6 +124,30 @@ def format_date(date_str: str) -> str:
 result = format_date("2024-01-15")  # "15/01/2024"
 ```
 
+## Logging — @log
+
+The `@log` decorator automatically injects a `logger` instance into a class (similar to Lombok's `@Slf4j`), eliminating the need to write `logging.getLogger(...)` everywhere.
+
+```python
+@log
+@service
+class UserService:
+    async def on_init(self):
+        self.logger.info("UserService started")
+
+    async def find_user(self, user_id: int):
+        self.logger.debug(f"Finding user: {user_id}")
+        try:
+            user = await self._query(user_id)
+            self.logger.info(f"Found user: {user_id}")
+            return user
+        except Exception as e:
+            self.logger.error(f"Query failed: {e}", exc_info=True)
+            raise
+```
+
+The logger name format is `{module}.{class}`, e.g., `src.service.user.UserService`. All instances share the same logger.
+
 ---
 
 [← Previous](01-quickstart.md) | [Next →](03-ioc.md)

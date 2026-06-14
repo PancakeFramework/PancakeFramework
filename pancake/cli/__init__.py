@@ -8,6 +8,8 @@ import sys
 
 
 def main():
+    from pancake.exceptions import PancakeError
+
     parser = argparse.ArgumentParser(
         prog="pancake",
         description="Pancake Framework - 命令行工具",
@@ -85,26 +87,44 @@ def main():
         "install": cmd_install,
     }
 
-    if args.command == "plugin":
-        if args.plugin_cmd == "list":
-            cmd_plugin_list(args)
-        elif args.plugin_cmd == "add":
-            cmd_plugin_add(args)
-        elif args.plugin_cmd == "remove":
-            cmd_plugin_remove(args)
-        elif args.plugin_cmd == "clear":
-            cmd_plugin_clear(args)
+    try:
+        if args.command == "plugin":
+            if args.plugin_cmd == "list":
+                cmd_plugin_list(args)
+            elif args.plugin_cmd == "add":
+                cmd_plugin_add(args)
+            elif args.plugin_cmd == "remove":
+                cmd_plugin_remove(args)
+            elif args.plugin_cmd == "clear":
+                cmd_plugin_clear(args)
+            else:
+                plugin_parser.print_help()
+        elif args.command == "config":
+            if args.config_cmd == "show":
+                cmd_config_show(args)
+            else:
+                config_parser.print_help()
+        elif args.command in commands:
+            commands[args.command](args)
         else:
-            plugin_parser.print_help()
-    elif args.command == "config":
-        if args.config_cmd == "show":
-            cmd_config_show(args)
-        else:
-            config_parser.print_help()
-    elif args.command in commands:
-        commands[args.command](args)
-    else:
-        parser.print_help()
+            parser.print_help()
+    except PancakeError as e:
+        # 框架异常：简化输出，完整信息写入 crash/
+        from pancake.crash import handle_exception
+        simplified, crash_file = handle_exception(e)
+        print(f"错误: {simplified}")
+        print(f"详细信息已写入: {crash_file}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n已取消")
+        sys.exit(0)
+    except Exception as e:
+        # 未预期异常：同样写入 crash/
+        from pancake.crash import handle_exception
+        simplified, crash_file = handle_exception(e)
+        print(f"未知错误: {simplified}")
+        print(f"详细信息已写入: {crash_file}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

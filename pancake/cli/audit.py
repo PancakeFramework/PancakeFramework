@@ -4,13 +4,14 @@ import ast
 import os
 import sys
 
+from pancake.exceptions import ProjectError
+
 
 def cmd_audit(args):
     """审核 src/ 代码质量"""
     src_dir = "src"
     if not os.path.isdir(src_dir):
-        print(f"错误: {src_dir} 目录不存在")
-        sys.exit(1)
+        raise ProjectError(f"{src_dir} 目录不存在")
 
     issues = []
     file_count = 0

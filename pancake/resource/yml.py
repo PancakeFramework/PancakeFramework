@@ -8,7 +8,7 @@ def yaml_init():
     from pancake.settings import get_path
     yaml_file_dir = get_path("yaml_dir")
     data = {}
-    if not os.path.exists(yaml_file_dir):
+    if not yaml_file_dir or not os.path.exists(yaml_file_dir):
         return data
     for yaml_file in os.listdir(yaml_file_dir):
         if yaml_file.endswith('.yml') or yaml_file.endswith('.yaml'):

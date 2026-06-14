@@ -1,6 +1,7 @@
 """配置与依赖装饰器 — @config, @depends_on, @import_class"""
 
 import functools
+import inspect
 from pancake.registry import export
 
 
@@ -10,7 +11,7 @@ def config(cls):
     original_on_init = cls.on_init
 
     @functools.wraps(original_on_init)
-    def new_on_init(self):
+    async def new_on_init(self):
         from pancake import settings
         for field_name in getattr(cls, '__dataclass_fields__', {}):
             if field_name.startswith("_"):
@@ -19,7 +20,10 @@ def config(cls):
             value = settings.get(config_key)
             if value is not None:
                 setattr(self, field_name, value)
-        original_on_init(self)
+        if inspect.iscoroutinefunction(original_on_init):
+            await original_on_init(self)
+        else:
+            original_on_init(self)
 
     cls.on_init = new_on_init
     return cls

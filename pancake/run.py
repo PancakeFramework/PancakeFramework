@@ -170,6 +170,8 @@ def _shutdown_handler(signum, frame):
 
 def run():
     """运行服务"""
+    from pancake.crash import handle_exception
+
     # 注册信号处理
     signal.signal(signal.SIGINT, _shutdown_handler)
     signal.signal(signal.SIGTERM, _shutdown_handler)
@@ -186,11 +188,20 @@ def run():
 
     progress_bar = ProgressBar(len(loading_list), "Pancake Loading")
 
-    for task in loading_list.keys():
-        loading_list[task]()
-        progress_bar.update(1, f"{task} 完成")
-    progress_bar.finish()
-    logger.info("Pancake Loading 完成")
+    try:
+        for task in loading_list.keys():
+            loading_list[task]()
+            progress_bar.update(1, f"{task} 完成")
+        progress_bar.finish()
+        logger.info("Pancake Loading 完成")
+    except Exception as e:
+        progress_bar.finish()
+        simplified, crash_file = handle_exception(e)
+        logger.error(f"启动失败: {simplified}")
+        logger.error(f"详细信息已写入: {crash_file}")
+        print(f"\n启动失败: {simplified}")
+        print(f"详细信息已写入: {crash_file}")
+        sys.exit(1)
 
     logger.info("Pancake 启动完成")
 

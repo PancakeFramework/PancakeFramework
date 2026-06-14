@@ -12,6 +12,7 @@ import subprocess
 from pancake.registry import register_decorator
 from pancake.factory.dough_factory import DoughFactory
 from pancake import settings
+from pancake.exceptions import PluginError
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +90,7 @@ def _load_plugins():
         try:
             plugin = _try_import(package_name)
         except RuntimeError as e:
-            logger.error(str(e))
-            sys.exit(1)
+            raise PluginError(str(e)) from e
 
         # 扫描模块中的类和函数
         all_items = {}
@@ -134,8 +134,7 @@ def run():
         try:
             instance = cls()
         except Exception as e:
-            logger.error(f"Plugin {plugin_name} init failed: {e}")
-            sys.exit(1)
+            raise PluginError(f"插件 {plugin_name} 初始化失败: {e}") from e
 
         # 检查 check 方法
         if hasattr(instance, 'check'):
@@ -144,8 +143,7 @@ def run():
                     logger.info(f"Plugin {plugin_name} check failed, skipping")
                     continue
             except Exception as e:
-                logger.error(f"Plugin check failed for {plugin_name}: {e}")
-                sys.exit(1)
+                raise PluginError(f"插件 {plugin_name} 检查失败: {e}") from e
 
         # 注册到 DoughFactory
         factory = DoughFactory.get()

@@ -117,15 +117,16 @@ def _make_inject_class(cls):
 
 
 def _make_inject_wrapper(func, by_name=False):
-    """创建注入 wrapper（@inject 和 @inject_name 共用）"""
+    """创建注入 wrapper（@inject 和 @inject_name 共用）
+
+    保留 __annotations__ 和 __wrapped__ 供类型检查和调试使用，
+    仅将 __signature__ 设为空，防止外部框架按原始签名解析参数。
+    """
     if inspect.iscoroutinefunction(func):
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
             kwargs = _resolve_inject_params(func, kwargs, by_name=by_name)
             return await func(*args, **kwargs)
-        async_wrapper.__annotations__ = {}
-        if hasattr(async_wrapper, '__wrapped__'):
-            delattr(async_wrapper, '__wrapped__')
         async_wrapper.__signature__ = inspect.Signature()
         return async_wrapper
     else:
@@ -133,9 +134,6 @@ def _make_inject_wrapper(func, by_name=False):
         def sync_wrapper(*args, **kwargs):
             kwargs = _resolve_inject_params(func, kwargs, by_name=by_name)
             return func(*args, **kwargs)
-        sync_wrapper.__annotations__ = {}
-        if hasattr(sync_wrapper, '__wrapped__'):
-            delattr(sync_wrapper, '__wrapped__')
         sync_wrapper.__signature__ = inspect.Signature()
         return sync_wrapper
 

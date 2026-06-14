@@ -25,7 +25,15 @@ pancake/                    # 框架核心
 │   └── broker.py           # 消息队列: @event_node / @on_event, SimpleBroker / RedisBroker
 ├── registry.py             # 统一注册表: 类、装饰器、实例、运行时数据
 ├── dough.py                # Bean 基类: Dough, DoughMeta, Scope
-├── decorators.py           # 装饰器: @Singleton, @Prototype, @Lazy, @inject, @Config 等
+├── decorators/             # 装饰器模块
+│   ├── scope.py            # @dough, @singleton, @prototype, @lazy
+│   ├── inject.py           # @inject, @inject_name
+│   ├── config.py           # @config, @depends_on, @import_class
+│   ├── convert.py          # @service, @configuration, @function, @struct
+│   ├── bean.py             # @maker, @maker_name, @no_maker
+│   └── log.py              # @log 日志装饰器
+├── exceptions.py           # 框架异常: PancakeError, ConfigError, PluginError 等
+├── crash.py                # 异常处理: 完整异常写入 crash/ 目录
 ├── base/                   # 基类模块
 │   ├── service.py          # Service 基类
 │   ├── configuration.py    # Configuration 基类
@@ -127,6 +135,18 @@ service = container.resolve(UserService)
 def get_config(service_title: str, service_port: int):
     return {"title": service_title, "port": service_port}
 ```
+
+### 日志 @log
+
+```python
+@log
+@service
+class MyService:
+    async def on_init(self):
+        self.logger.info("服务启动")
+```
+
+logger 名称为 `{module}.{qualname}`，所有实例共享同一个 logger。
 
 ### AI 模块 (无需 import)
 
