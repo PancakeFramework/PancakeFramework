@@ -14,6 +14,6 @@ def print_ico():
 
 def print_cover():
     import os
-    cover_path = os.path.join(os.path.dirname(__file__), "cover")
+    cover_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cover")
     with open(cover_path, "r", encoding="utf-8") as f:
         print(f.read())

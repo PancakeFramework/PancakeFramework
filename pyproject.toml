@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pancake_framework"
-version = "0.2.6"
+version = "0.2.7"
 description = "Pancake - Decorator-driven Python web framework with IoC, MyBatis ORM, and AI workflow"
 authors = ["drayee <1473443474@qq.com>"]
 license = "MIT"
